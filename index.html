@@ -6,8 +6,8 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="description" content="기술 정보를 공유하고 있으며 개발 문화 발전에 이바지할 방법을 찾고 있는 개발자입니다.">
   <meta name="keywords" content="Developer, Backend, Frontend, Portfolio, 개발자스럽다">
-  <link rel="stylesheet" href="https://cdn.rawgit.com/tonsky/FiraCode/1.204/distr/fira_code.css" />
-  <!-- <link rel="stylesheet" href="https://cdn.rawgit.com/Joungkyun/font-d2coding/master/d2coding.css" /> -->
+  <link rel="stylesheet" href="https://cdn.rawgit.com/Joungkyun/font-d2coding/master/d2coding.css" />
+  <!-- <link rel="stylesheet" href="https://cdn.rawgit.com/tonsky/FiraCode/master/distr/fira_code.css" /> -->
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.8/css/all.css" integrity="sha384-3AB7yXWz4OeoZcPbieVW64vVXEwADiYyAEhwilzWsLw+9FgqpyjjStpPnpBO8o8S" crossorigin="anonymous">
   <link rel="stylesheet" href="./assets/styles.css" />
   <title>GAERAE.COM :: GAEBALJA SEUREOPDA</title>
@@ -16,7 +16,7 @@
   <noscript>
     Please enable JavaScript to see this page!
   </noscript>
-  <div class="loader hidden">
+  <div class="zsh">
     <div class="line"><span class="comment">################################</span></div>
     <div class="line"><span class="comment"># WELCOM TO GAEBALJA SEUREOPDA #</span></div>
     <div class="line"><span class="comment">################################</span></div>
@@ -24,15 +24,16 @@
     <div class="line">
       <span class="path">~/gaerae.com</span>
       <span class="branch"> master</span>
-      <span class="command"></span>
-      <span class="args"></span>
+      <span class="command">cat</span>
+      <span class="args">main.js</span>
     </div>
   </div>
 
-  <div id="view" class="hidden">
+  <div id="view">
     <div class="line"><br /></div>
     <div class="line">
       <span class="comment">// Content Curation in Tech</span><br/>
+      <span class="comment">// <strong>개발자스럽다</strong>는 기술 정보를 찾고 분류하며 가치를 더하여 공유하려고 노력합니다.</span><br/>
     </div>
     <span class="storage-type">const</span>
     <span class="variable">publish</span>
@@ -62,6 +63,7 @@
     <div class="line"><br /></div>
     <div class="line">
       <span class="comment">// Personal Projects</span><br/>
+      <span class="comment">// 공개할 수 있는 개인 프로젝트입니다.</span><br/>
     </div>
     <span class="storage-type">const</span>
     <span class="variable">personal_projects</span>
@@ -73,18 +75,19 @@
 
     <div class="line"><span class="white-space space"></span><span class="white-space space"></span>
       { name: <span class="string">'FFeed - Facebook feed'</span>,
-      urls: [ <span class="string">'<a href="http://github.com/gaerae/ffeed" title="Github"><i class="fab fa-github"></i></a>'</span>, <span class="string">'<a href="http://gaerae.com/ffeed" title="Website"><i class="fab fa-chrome"></i></a>'</span> ] },
+      urls: [ <span class="string">'<a href="http://github.com/gaerae/ffeed" title="Github"><i class="fab fa-github"></i></a>'</span>, <span class="string">'<a href="http://gaerae.com/ffeed" title="Website"><i class="fas fa-globe"></i></a>'</span> ] },
     </div>
 
     <div class="line"><span class="white-space space"></span><span class="white-space space"></span>
       { name: <span class="string">'Awesome Algorithms'</span>,
-      urls: [ <span class="string">'<a href="http://github.com/gaerae/awesome-algorithms" title="Github"><i class="fab fa-github"></i></a>'</span>, <span class="string">'<a href="http://gaerae.com/awesome-algorithms" title="Website"><i class="fab fa-chrome"></i></a>'</span> ] },
+      urls: [ <span class="string">'<a href="http://github.com/gaerae/awesome-algorithms" title="Github"><i class="fab fa-github"></i></a>'</span>, <span class="string">'<a href="http://gaerae.com/awesome-algorithms" title="Website"><i class="fas fa-globe"></i></a>'</span> ] },
     </div>
     <div class="line">];</div>
 
     <div class="line"><br /></div>
     <div class="line">
       <span class="comment">// Profile</span><br/>
+      <span class="comment">// 개발 문화 발전에 이바지할 방법을 찾고 있는 개발자입니다.</span><br/>
     </div>
     <span class="storage-type">const</span>
     <span class="variable">profile</span>
@@ -96,6 +99,15 @@
       aka: '<span class="string">gaerae</span>',
     </div>
     <div class="line"><span class="white-space space"></span><span class="white-space space"></span>
+      interest: [
+      '<span class="string">Bash</span>', '<span class="string">Python</span>', '<span class="string">NodeJS</span>',
+      '<span class="string">PHP</span>', '<span class="string">Go</span>', '<span class="string">JAVA</span>', '<span class="string">VueJS</span>',
+      '<span class="string">Linux</span>', '<span class="string">PostgreSQL</span>', '<span class="string">MySql(MariaDB)</span>',
+      '<span class="string">Architecture</span>', '<span class="string">Curation</span>', '<span class="string">Leadership</span>',
+      '<span class="string">Technology Evangelist</span>', '<span class="string">Photography</span>'
+      ]
+    </div>
+    <div class="line"><span class="white-space space"></span><span class="white-space space"></span>
       <span class="collapsed">‹…›</span>
     </div>
 
@@ -103,25 +115,12 @@
   </div>
 
   <script type="text/javascript">
-    var $loader = document.querySelector('.loader');
-    var $now = document.querySelector('.now');
-    var $ip = document.querySelector('.ip');
-    var $body = document.body;
-    $now.innerHTML = ' ' + new Date().toString().substr(0, 24) + ' ';
-    $loader.classList.remove('hidden');
-    for (var i = 1; i <= 7; i++) {
-      (function(i){
-        setTimeout(function() {
-          $body.classList.remove('step-' + (i - 1));
-          $body.classList.add('step-' + i);
-        }, i * 250 + ~~(Math.random() * 50));
-      })(i);
-    }
+    document.querySelector('.now').innerHTML = ' ' + new Date().toString().substr(0, 24) + ' ';
 
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.open('GET', 'https://api.ipify.org?format=text', false );
+    const xmlHttp = new XMLHttpRequest();
+    xmlHttp.open('GET', 'https://api.ipify.org?format=text', false);
     xmlHttp.send(null);
-    $ip.innerHTML = xmlHttp.responseText;
+    document.querySelector('.ip').innerHTML = xmlHttp.responseText;
 
     console.info(
       '%c [~/gaerae.com $] %c curl https://github.com/gaerae/gaerae.github.io',

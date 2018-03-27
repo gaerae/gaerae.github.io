@@ -27,43 +27,26 @@ body {
   --color-zsh-branch-background: #85981C;
   --color-zsh-branch-foreground: #000;
   --color-zsh-command-valid: #85981C;
-  --color-zsh-command-invalid: #C14C22;
   --color-zsh-args: #cdd;
-  --color-zsh-args-autocomplete: #566;
   margin: 0.3rem;
   background-color: var(--color-background);
   color: #F8F8F2;
 }
-.hidden { display: none; }
-.loader { color: var(--color-zsh-text); font-size: 0; padding-bottom: 0.5rem; }
-.loader .now { display: inline; }
-.loader .ip { display: inline; }
-.loader span { font-size: 1rem; }
-.loader .branch:before,
-.loader .command:before { content: ''; display: inline-block; width: 0; height: 0; border: 0.6rem solid transparent; vertical-align: -0.25rem; }
-.loader .path { background-color: var(--color-zsh-path-background); color: var(--color-zsh-path-foreground); padding-right: 1rem; }
-.loader .branch { background-color: var(--color-zsh-branch-background); color: var(--color-zsh-branch-foreground); padding-right: 1rem; }
-.loader .branch:before { border-left-color: var(--color-zsh-path-background); }
-.loader .command:after { color: var(--color-zsh-command-valid); }
-.loader .command:before { border-left-color: var(--color-zsh-branch-background); }
-.loader .args:before { padding-left: 1rem; color: var(--color-zsh-args); }
-.loader .args:after { color: var(--color-zsh-args-autocomplete); }
-.step-1 .loader .command:after { content: 'c'; color: var(--color-zsh-command-invalid); }
-.step-2 .loader .command:after { content: 'ca'; color: var(--color-zsh-command-invalid); }
-.step-3 .loader .command:after { content: 'cat'; }
-.step-4 .loader .command:after { content: 'cat'; }
-.step-4 .loader .args:before { content: 'm'; }
-.step-4 .loader .args:after { content: 'ain.js'; }
-.step-5 .loader .command:after { content: 'cat'; }
-.step-5 .loader .args:before { content: 'ma'; }
-.step-5 .loader .args:after { content: 'in.js'; }
-.step-6 .loader .command:after { content: 'cat'; }
-.step-6 .loader .args:before { content: 'main.js'; }
-.step-7 .loader .command:after { content: 'cat'; }
-.step-7 .loader .args:before { content: 'main.js'; }
-.step-7 #view { display: block; }
+.zsh { color: var(--color-zsh-text); font-size: 0; padding-bottom: 0.5rem; }
+.zsh .now { display: inline; }
+.zsh .ip { display: inline; }
+.zsh span { font-size: 1rem; }
+.zsh .branch:before,
+.zsh .command:before { content: ''; display: inline-block; width: 0; height: 0; border: 0.6rem solid transparent; vertical-align: -0.25rem; }
+.zsh .path { background-color: var(--color-zsh-path-background); color: var(--color-zsh-path-foreground); padding-right: 1rem; }
+.zsh .branch { background-color: var(--color-zsh-branch-background); color: var(--color-zsh-branch-foreground); padding-right: 1rem; }
+.zsh .branch:before { border-left-color: var(--color-zsh-path-background); }
+.zsh .command:before { border-left-color: var(--color-zsh-branch-background); }
+.zsh .command { color: var(--color-zsh-command-valid); }
+.zsh .args { padding-left: 1rem; color: var(--color-zsh-args); }
+
 .space:before { content: '·'; }
-.line { display: block; }
+.line { display: block; padding: 2px 0 2px 0 }
 .white-space { color: var(--color-white-space); }
 .comment { color: var(--color-comment); }
 .variable { color: var(--color-variable); }
