@@ -223,6 +223,12 @@ p {
   text-align: center;
 }
 
+#intro p {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
 #scrollDown {
   position: absolute;
   bottom: 0;

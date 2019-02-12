@@ -41,20 +41,6 @@ for(var i = 0; i < elements.length; i++){
 }
 
 /************
- Message
-*************/
-console.info(
-  '%c [~/gaerae.com $] %c curl https://github.com/gaerae/gaerae.github.io',
-  'font-family: "Fira Code", monospace; padding: 2px 0; background-color: #2E8CCF; color: #000000;',
-  'color: #000000;'
-);
-
-const xmlHttp = new XMLHttpRequest();
-xmlHttp.open('GET', 'https://api.ipify.org?format=text', false);
-xmlHttp.send(null);
-document.querySelector('#messageIP').innerHTML = xmlHttp.responseText;
-
-/************
  Canvas Container
 *************/
 var canvasContainer = document.getElementById("canvasContainer");
@@ -82,11 +68,11 @@ canvas.addEventListener("mousemove", function(event){
   canMouse.y = event.offsetY;
 });
 var skills = [
-  "Linux",
+  "Linux", "Docker", "Kubernetes",
   "PostgreSQL", "MySql",
   "Bash", "Python", "PHP", "Go",
   "JavaScript", "Node.js", "Vue.js",
-  "Architecture","Curation","Leadership","Technology Evangelist"
+  "Architecture","Curation","Leadership","DevRel", "DevOps"
 ];
 
 var canMouse = {
@@ -341,3 +327,18 @@ function animate(){
   }
 }
 animate();
+
+/************
+ Message
+ *************/
+console.info(
+    '%c [~/gaerae.com $] %c curl https://github.com/gaerae/gaerae.github.io',
+    'font-family: "Fira Code", monospace; padding: 2px 0; background-color: #2E8CCF; color: #000000;',
+    'color: #000000;'
+);
+/*
+const xmlHttp = new XMLHttpRequest();
+xmlHttp.open('GET', 'https://api.ipify.org?format=text', false);
+xmlHttp.send(null);
+document.querySelector('#messageIP').innerHTML = xmlHttp.responseText;
+*/
