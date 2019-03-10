@@ -533,9 +533,7 @@ p {
 .aProjectsLightBoxCon .psotDis {
   color: #606973;
 }
-.aProjectsLightBoxCon .postSkills {
-  padding-top: 30px;
-}
+.aProjectsLightBoxCon .postSkills {}
 .aProjectsLightBoxCon .postSkills .aPostSkill {
   padding: 8px 15px;
   color: #111111;
