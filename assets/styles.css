@@ -49,6 +49,26 @@ a:hover {
   left: 0;
 }
 
+.tags {
+  margin: 1rem 0 2rem 0;
+  padding: .5rem 0 1rem;
+  line-height: 1.8;
+}
+
+.tags a {
+  color: #28242f;
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 12px;
+  white-space: nowrap;
+  border: 3px solid #28242f;
+  border-radius: 2rem;
+  padding: .2rem .85rem .25rem .85rem;
+}
+.tags a:focus,.tags a:hover{
+  color:#ffffff;border-color: #254cff;background-color: #254cff;
+}
+
 /* Typo */
 body {
   font-family: 'Montserrat', sans-serif;
@@ -245,39 +265,20 @@ p {
   width: auto;
   fill: #ffffff;
 }
-/* Skills */
-#skillsCon {
+/* blog */
+#blogCon {
   font-size: 0;
 }
-.aSkill, .skillImg, .skillDesc {
+.blogDesc {
   display: inline-block;
   vertical-align: middle;
+  width: 100%;
 }
-.aSkill {
-  width: 50%;
-}
-.aSkill:first-child {
-  padding-right: 40px;
-}
-.aSkill:last-child {
-  padding-left: 40px;
-}
-.skillImg {
-  width: 20%;
-}
-.skillDesc {
-  width: 80%;
-}
-.skillImg svg {
-  height: 55px;
-  width: auto;
-  fill: #61d090;
-}
-.skillDesc .skillTitle {
+.blogDesc .blogTitle {
   font-size: 26px;
   margin: 20px 0 15px 0;
 }
-.skillDesc p {
+.blogDesc p {
   font-size: 18px;
   color: #606973;
 }
@@ -563,10 +564,7 @@ p {
 #contactCon p {
 
 }
-#contactCon .myEmail {
-  font-family: sans-serif;
-  font-weight: 700;
-}
+
 /* Footer */
 #footer {
   padding: 20px 0;

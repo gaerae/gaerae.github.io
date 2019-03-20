@@ -4,11 +4,15 @@
   <script async src="https://www.googletagmanager.com/gtag/js?id=UA-43146612-2"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+
+    function gtag() {
+      dataLayer.push(arguments);
+    }
+
     gtag('js', new Date());
     gtag('config', 'UA-43146612-2');
   </script>
-  <title>GAERAE | Developer</title>
+  <title>개래닷컴 | 소프트웨어 개발자</title>
 
   <!-- Favicon -->
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
@@ -29,7 +33,24 @@
   <meta name="twitter:card" content="summary">
   <meta name="twitter:site" content="@gaeraecom">
   <meta name='twitter:creator' content='@gaeraecom'>
-  <script type='application/ld+json'>{"@context":"https://schema.org","@type":"Person","name":"GAERAE | Developer","url":"https://gaerae.com","sameAs":["https://blog.gaerae.com","https://www.facebook.com/gaeraecom","https://twitter.com/gaeraecom","https://www.linkedin.com/in/gaerae","https://www.instagram.com/gaeraecom","https://pf.kakao.com/_cxlzYu","https://www.pinterest.co.kr/gaeraecom/","https://plus.google.com/+gaeraecom","https://youtube.com/gaeraecom","https://disco.me/users/00241f10-64cd-11e7-9778-000000007b48"]}</script>
+  <script type='application/ld+json'>{
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "개래닷컴 | 소프트웨어 개발자",
+    "url": "https://gaerae.com",
+    "sameAs": [
+      "https://blog.gaerae.com",
+      "https://www.facebook.com/gaeraecom",
+      "https://twitter.com/gaeraecom",
+      "https://www.linkedin.com/in/gaerae",
+      "https://www.instagram.com/gaeraecom",
+      "https://pf.kakao.com/_cxlzYu",
+      "https://www.pinterest.co.kr/gaeraecom/",
+      "https://plus.google.com/+gaeraecom",
+      "https://youtube.com/gaeraecom",
+      "https://disco.me/users/00241f10-64cd-11e7-9778-000000007b48"
+    ]
+  }</script>
 
   <!-- fonts -->
   <link href="https://fonts.googleapis.com/css?family=Lato:400,700" rel="stylesheet">
@@ -42,12 +63,12 @@
 </div>
 <!-- start header -->
 <header id="header">
-  <div id="mainNavWrap" >
+  <div id="mainNavWrap">
     <div class="container">
       <!-- start logo -->
       <div id="logo">
         <h1>
-          <a href="https://gaerae.com">GAERAE | Developer</a>
+          <a href="https://gaerae.com">개래닷컴</a>
         </h1>
 
       </div>
@@ -55,9 +76,9 @@
 
       <div id="mainMenu">
         <ul>
-          <li><a data-scroll class="scrollTo" href="#skills">What I Do</a></li>
-          <li><a data-scroll class="scrollTo" href="#projects">Projects</a></li>
-          <li><a data-scroll class="scrollTo" href="#contact">Contact</a></li>
+          <li><a data-scroll class="scrollTo" href="#blog">블로그</a></li>
+          <li><a data-scroll class="scrollTo" href="#projects">프로젝트</a></li>
+          <li><a data-scroll class="scrollTo" href="#contact">연락하기</a></li>
         </ul>
       </div>
     </div>
@@ -65,16 +86,16 @@
 
   <div id="intro">
     <div class="container">
-      <h1>Hey! Hey! Hey!</h1>
       <h1>😃</h1>
-      <h1>Sit back, relax and enjoy the read.</h1>
-      <p>앉아서 긴장을 풀고 즐겁게 보세요.</p>
+      <h1>소프트웨어 개발자</h1>
+      <p>플랫폼 간의 데이터 마이그레이션과<br/>클라우드 기반의 아키텍쳐 설계와 구현에 관심있다.</p>
     </div>
   </div>
   <div id="scrollDown">
-    <a href="#skills">
+    <a href="#blog">
       <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="28px" height="29px" viewBox="0 0 28 29">
-        <polygon class="st0" points="14.273,28.424 0.497,14.647 2.618,12.526 14.273,24.182 25.962,12.493 28.083,14.614"/>
+        <polygon class="st0"
+                 points="14.273,28.424 0.497,14.647 2.618,12.526 14.273,24.182 25.962,12.493 28.083,14.614"/>
         <polygon class="st0" points="14.273,16.387 0.497,2.61 2.618,0.489 14.273,12.145 25.962,0.456 28.083,2.577"/>
       </svg>
     </a>
@@ -85,158 +106,94 @@
 </header>
 <!-- end header -->
 
-<!-- start skills -->
-<section id="skills" class="section">
+<!-- start blog -->
+<section id="blog" class="section">
   <div class="container">
-    <h2 class="secTitle">What I Do</h2>
+    <h2 class="secTitle">블로그</h2>
 
-    <!-- start development skill -->
-    <div id="skillsCon">
-      <div class="aSkill">
-        <div class="skillImg">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-            <path d="M0 32v448h512v-448h-512zM480 448h-448v-384h448v384zM448 96h-384v320h384v-320zM224 256h-32v32h-32v32h-32v-32h32v-32h32v-32h-32v-32h-32v-32h32v32h32v32h32v32zM352 320h-96v-32h96v32z"></path>
-          </svg>
+    <div id="blogCon">
+        <div class="blogDesc">
+          <h3 class="blogTitle">개발자스럽다</h3>
+          <p>"개발자스럽다" 이름으로 블로그와 소셜 미디어 채널을 운영하며 다양한 기술 정보를 찾아 가치를 더해 공유하려고 노력한다.</p>
+          <!-- GAEBALJA SEUREOPDA : Content Curation in Tech -->
+          <p class="tags">
+            <a href="https://blog.gaerae.com" title="Blog">blog.gaerae.com</a>
+          </p>
         </div>
-        <div class="skillDesc">
-          <h3 class="skillTitle">Software Development</h3>
-          <p>정보 공유와 개발 문화에 관심이 많으며, 재미있는 제품을 만드는 소프트웨어 개발자로 일하고 있습니다.</p>
-        </div>
-      </div>
-      <!-- end development skill -->
 
-      <!-- start leadership skill -->
-      <div class="aSkill">
-        <div class="skillImg">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-            <path d="M480 160h-96v-48c0-44.183-85.961-80-192-80s-192 35.817-192 80v320c0 44.183 85.961 80 192 80s192-35.817 192-80v-48h96c17.673 0 32-14.327 32-32v-160c0-17.673-14.327-32-32-32zM88.028 129.199c-18.497-6.095-29.704-12.623-35.705-17.199 6.002-4.576 17.208-11.104 35.705-17.199 28.971-9.545 65.895-14.801 103.972-14.801s75.002 5.256 103.972 14.801c18.497 6.094 29.704 12.623 35.705 17.199-6.001 4.576-17.208 11.104-35.705 17.199-28.97 9.545-65.895 14.801-103.972 14.801s-75.001-5.256-103.972-14.801zM448 320h-64v-96h64v96z"></path>
-          </svg>
+        <div class="blogDesc">
+          <h3 class="blogTitle">소셜 미디어</h3>
+          <p>평일 오전 8시 기술 정보를 공유는 소셜 미디어 채널이다. (일부는 비정기로 운영된다.)</p>
+          <p class="tags">
+            <a href="https://facebook.com/gaeraecom" title="Facebook">Facebook</a>
+            <a href="https://twitter.com/gaeraecom" title="Twitter">Twitter</a>
+            <a href="https://goo.gl/cMRNih" title="Slack">Slack</a>
+            <a href="https://www.linkedin.com/in/gaerae/detail/recent-activity" title="LinkedIn">LinkedIn</a>
+            <a href="https://pf.kakao.com/_cxlzYu" title="KakaoTalk">KakaoTalk</a>
+            <a href="https://disco.me/users/00241f10-64cd-11e7-9778-000000007b48" title="Disco">Disco</a>
+            <a href="https://www.pinterest.co.kr/gaeraecom" title="Pinterest">Pinterest</a>
+            <a href="https://youtube.com/gaeraecom" title="Youtube">Youtube</a>
+            <a href="https://www.instagram.com/gaeraecom" title="Instagram">Instagram</a>
+          </p>
         </div>
-        <div class="skillDesc">
-          <h3 class="skillTitle">Leadership</h3>
-          <p>다른 사람들에게 더 많은 것을 꿈꾸고, 배우고, 행동할 수 있는 영감을 불어넣는 사람이 되려고 노력합니다.</p>
-        </div>
-      </div>
     </div>
-    <!-- end leadership skill -->
-  </div>
   </div>
 </section>
-<!-- end skills -->
+<!-- end blog -->
 
 <!-- start projects -->
 <section id="projects" class="section">
   <div class="container">
-    <h2 class="secTitle">My Personal Projects</h2>
+    <h2 class="secTitle">프로젝트</h2>
 
     <div id="projectsCon">
 
       <!-- start a projects -->
       <div class="aProjectsWrap">
         <div class="aProjects notOpened">
-          <div class="aProjectsThumb" style="background-image: url('assets/projects/gaeraecom.png')">
-            <div class="expandIcon">
-              <img alt="search" src="assets/search.svg" />
-            </div>
-            <div class="overlay"></div>
-          </div>
-          <div class="aProjectsCon">
-            <h3 class="aProjectsTitle">개발자스럽다</h3>
-            <p class="aProjectsCat">
-              블로그와 SNS에서 정보를 공유합니다.
-            </p>
-          </div>
-          <div class="aProjectsLightBox">
-            <div class="topPane">
-              <div class="closeIcon">
-                <img alt="close"src="assets/close.svg">
-              </div>
-            </div>
-            <div class="aProjectsLightBoxCon">
-              <div class="thumb">
-                <img alt="thumb"src="assets/projects/gaeraecom.png">
-              </div>
-              <div class="postBody">
-                <div class="postTop">
-                  <h1>개발자스럽다</h1>
-                  <div class="livePreviewLink">
-                    <a target="_blank" href="https://blog.gaerae.com">Visit Blog</a>
-                  </div>
-                </div>
-                <div class="psotDis">
-                  <p>
-                    블로그와 소셜 미디어에서 기술 정보를 찾고 분류하여 가치를 더해 공유합니다.
-                  </p>
-                </div>
-
-                <div class="postFooter">
-                  <h3>Related keywords</h3>
-                  <div class="postSkills">
-                    <span class="aPostSkill"><a href="https://blog.gaerae.com" title="Blog">Blog</a></span>
-                    <span class="aPostSkill"><a href="https://facebook.com/gaeraecom" title="Facebook">Facebook</a></span>
-                    <span class="aPostSkill"><a href="https://twitter.com/gaeraecom" title="Twitter">Twitter</a></span>
-                    <span class="aPostSkill"><a href="https://goo.gl/cMRNih" title="Slack">Slack</a></span>
-                    <span class="aPostSkill"><a href="https://www.linkedin.com/in/gaerae/detail/recent-activity" title="LinkedIn">LinkedIn</a></span>
-                    <span class="aPostSkill"><a href="https://pf.kakao.com/_cxlzYu" title="KakaoTalk">KakaoTalk</a></span>
-                    <span class="aPostSkill"><a href="https://disco.me/users/00241f10-64cd-11e7-9778-000000007b48" title="Disco">Disco</a></span>
-                    <span class="aPostSkill"><a href="https://www.pinterest.co.kr/gaeraecom" title="Pinterest">Pinterest</a></span>
-                    <span class="aPostSkill"><a href="https://youtube.com/gaeraecom" title="Youtube">Youtube</a></span>
-                    <span class="aPostSkill"><a href="https://www.instagram.com/gaeraecom" title="Instagram">Instagram</a></span>
-                  </div>
-                </div>
-
-              </div>
-
-            </div>
-          </div>
-        </div>
-        <div>
-          <h3>GAEBALJA SEUREOPDA</h3>
-          <p>Content Curation in Tech</p>
-        </div>
-      </div>
-
-      <div class="aProjectsWrap">
-        <div class="aProjects notOpened">
           <div class="aProjectsThumb" style="background-image: url('assets/projects/jira-subtask-sortable.png')">
             <div class="expandIcon">
-              <img alt="search" src="assets/search.svg" />
+              <img alt="search" src="assets/search.svg"/>
             </div>
             <div class="overlay"></div>
           </div>
           <div class="aProjectsCon">
             <h3 class="aProjectsTitle">JIRA Subtask Sortable</h3>
             <p class="aProjectsCat">
-              Chrome 확장 프로그램입니다.
+              Chrome 확장 프로그램
             </p>
           </div>
           <div class="aProjectsLightBox">
             <div class="topPane">
               <div class="closeIcon">
-                <img alt="close"src="assets/close.svg">
+                <img alt="close" src="assets/close.svg">
               </div>
             </div>
             <div class="aProjectsLightBoxCon">
               <div class="thumb">
-                <img alt="thumb"src="assets/projects/jira-subtask-sortable.png">
+                <img alt="thumb" src="assets/projects/jira-subtask-sortable.png">
               </div>
               <div class="postBody">
                 <div class="postTop">
                   <h1>JIRA Subtask Sortable</h1>
                   <div class="livePreviewLink">
-                    <a target="_blank" href="https://chrome.google.com/webstore/detail/jira-subtask-sortable/hcidkmckdnbkbjghgcgeikdoljdhlimb">Visit GitHub</a>
+                    <a target="_blank"
+                       href="https://chrome.google.com/webstore/detail/jira-subtask-sortable/hcidkmckdnbkbjghgcgeikdoljdhlimb">Visit
+                      GitHub</a>
                   </div>
                 </div>
                 <div class="psotDis">
                   <p>
-                    JIRA Sub-task의 정렬 순서를 쉽게 변경할 수 있게해주는 Chrome 확장 프로그램입니다.
+                    JIRA Sub-task의 정렬 순서를 쉽게 변경할 수 있게해주는 Chrome 확장 프로그램이다.
                   </p>
                 </div>
 
                 <div class="postFooter">
                   <h3>Related keywords</h3>
                   <div class="postSkills">
-                    <span class="aPostSkill"><a href="https://chrome.google.com/webstore/detail/jira-subtask-sortable/hcidkmckdnbkbjghgcgeikdoljdhlimb" title="Chrome Web Store">Chrome Web Store</a></span>
+                    <span class="aPostSkill"><a
+                      href="https://chrome.google.com/webstore/detail/jira-subtask-sortable/hcidkmckdnbkbjghgcgeikdoljdhlimb"
+                      title="Chrome Web Store">Chrome Web Store</a></span>
                     <span class="aPostSkill"><a href="https://github.com/gaerae/jira-subtask-sortable" title="GitHub">GitHub</a></span>
                   </div>
                 </div>
@@ -256,25 +213,25 @@
         <div class="aProjects notOpened">
           <div class="aProjectsThumb" style="background-image: url('assets/projects/thumb.png')">
             <div class="expandIcon">
-              <img alt="search" src="assets/search.svg" />
+              <img alt="search" src="assets/search.svg"/>
             </div>
             <div class="overlay"></div>
           </div>
           <div class="aProjectsCon">
             <h3 class="aProjectsTitle">FFeed - Facebook feed</h3>
             <p class="aProjectsCat">
-              Vue.js로 제작된 페이스북 피드입니다.
+              Vue.js로 제작된 페이스북 피드
             </p>
           </div>
           <div class="aProjectsLightBox">
             <div class="topPane">
               <div class="closeIcon">
-                <img alt="close"src="assets/close.svg">
+                <img alt="close" src="assets/close.svg">
               </div>
             </div>
             <div class="aProjectsLightBoxCon">
               <div class="thumb">
-                <img alt="thumb"src="assets/projects/thumb.png">
+                <img alt="thumb" src="assets/projects/thumb.png">
               </div>
               <div class="postBody">
                 <div class="postTop">
@@ -285,7 +242,7 @@
                 </div>
                 <div class="psotDis">
                   <p>
-                    Vue.js로 제작된 페이스북 피드입니다.
+                    Vue.js로 제작된 페이스북 피드이다.
                   </p>
                 </div>
 
@@ -312,25 +269,25 @@
         <div class="aProjects notOpened">
           <div class="aProjectsThumb" style="background-image: url('assets/projects/facebook-contest-winner.png')">
             <div class="expandIcon">
-              <img alt="search" src="assets/search.svg" />
+              <img alt="search" src="assets/search.svg"/>
             </div>
             <div class="overlay"></div>
           </div>
           <div class="aProjectsCon">
             <h3 class="aProjectsTitle">Facebook Contest Winner</h3>
             <p class="aProjectsCat">
-              페이스북에서 사용자를 추첨하는 스크립트입니다.
+              페이스북에서 사용자를 추첨하는 스크립트
             </p>
           </div>
           <div class="aProjectsLightBox">
             <div class="topPane">
               <div class="closeIcon">
-                <img alt="close"src="assets/close.svg">
+                <img alt="close" src="assets/close.svg">
               </div>
             </div>
             <div class="aProjectsLightBoxCon">
               <div class="thumb">
-                <img alt="thumb"src="assets/projects/facebook-contest-winner.png">
+                <img alt="thumb" src="assets/projects/facebook-contest-winner.png">
               </div>
               <div class="postBody">
                 <div class="postTop">
@@ -341,7 +298,7 @@
                 </div>
                 <div class="psotDis">
                   <p>
-                    페이스북에서 댓글 혹은 공유 사용자를 추첨하는 스크립트입니다.
+                    페이스북에서 댓글 혹은 공유 사용자를 추첨하는 스크립트이다.
                   </p>
                 </div>
 
@@ -368,25 +325,25 @@
         <div class="aProjects notOpened">
           <div class="aProjectsThumb" style="background-image: url('assets/projects/thumb.png')">
             <div class="expandIcon">
-              <img alt="search" src="assets/search.svg" />
+              <img alt="search" src="assets/search.svg"/>
             </div>
             <div class="overlay"></div>
           </div>
           <div class="aProjectsCon">
             <h3 class="aProjectsTitle">Awesome Algorithms</h3>
             <p class="aProjectsCat">
-              알고리즘를 배우고 연습할 수 있는 선별된 목록입니다.
+              알고리즘를 배우고 연습할 수 있는 선별된 목록
             </p>
           </div>
           <div class="aProjectsLightBox">
             <div class="topPane">
               <div class="closeIcon">
-                <img alt="close"src="assets/close.svg">
+                <img alt="close" src="assets/close.svg">
               </div>
             </div>
             <div class="aProjectsLightBoxCon">
               <div class="thumb">
-                <img alt="thumb"src="assets/projects/thumb.png">
+                <img alt="thumb" src="assets/projects/thumb.png">
               </div>
               <div class="postBody">
                 <div class="postTop">
@@ -397,7 +354,7 @@
                 </div>
                 <div class="psotDis">
                   <p>
-                    알고리즘를 배우고 연습할 수 있는 선별된 목록입니다.
+                    알고리즘를 배우고 연습할 수 있는 선별된 목록이다.
                   </p>
                 </div>
 
@@ -428,9 +385,9 @@
 <!-- start contact -->
 <section id="contact" class="section">
   <div class="container" id="contactCon">
-    <h2>Let's Talk</h2>
-    <p>I will be really happy to hear from you.</p>
-    <p class="myEmail"><a href="https://m.me/gaeraecom">Facebook Messenger</a></p>
+    <h2>연락하기</h2>
+    <p>답변이 없을 수도 있다.</p>
+    <p class="tags"><a href="https://m.me/gaeraecom">Facebook Messenger</a></p>
   </div>
 </section>
 <!-- end contact -->
@@ -438,7 +395,7 @@
 <!-- start footer -->
 <footer id="footer">
   <div id="copyrights">
-    &#169; copyright 2019. all rights reserved.
+    &#169; 2019 GAERAE. all rights reserved.
   </div>
 </footer>
 <!-- end footer -->
