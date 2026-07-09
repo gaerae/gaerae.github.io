@@ -1,3 +1,7 @@
-# :globe_with_meridians: gaerae.com :tada:
+# gaerae.com
 
-:sunny: :computer: :camera: :bulb: :boom:
+🔗 **https://gaerae.com**
+
+<br>
+
+Vanilla HTML · CSS · JS · Three.js (WebGL) · GitHub Pages

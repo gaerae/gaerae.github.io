@@ -55,3 +55,6 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# Claude Code local tooling
+.claude/
