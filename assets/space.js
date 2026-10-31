@@ -316,25 +316,19 @@ function updateConstellation(dt) {
  * ============================================================ */
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-const CDN = 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/';
-// map: 색상, bump: 요철(선택), rim: 대기 색, atmo: 대기 세기(무대기 천체는 낮게)
+const TX = 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/';
+// 특징이 뚜렷해 실사감이 좋은 천체만 선별
 const PLANETS = [
-  { name: 'Mars',    map: 'marsmap1k.jpg',  bump: 'marsbump1k.jpg',  rim: [0.95, 0.55, 0.40], bumpScale: 12, atmo: 0.7 },
-  { name: 'Earth',   map: 'earthmap1k.jpg', bump: 'earthbump1k.jpg', rim: [0.35, 0.60, 1.00], bumpScale: 10, atmo: 1.0 },
-  { name: 'Mercury', map: 'mercurymap.jpg', bump: 'mercurybump.jpg', rim: [0.62, 0.62, 0.64], bumpScale: 12, atmo: 0.18 },
-  { name: 'Venus',   map: 'venusmap.jpg',   bump: 'venusbump.jpg',   rim: [1.00, 0.80, 0.45], bumpScale: 8,  atmo: 0.95 },
-  { name: 'Moon',    map: 'moonmap1k.jpg',  bump: 'moonbump1k.jpg',  rim: [0.55, 0.60, 0.68], bumpScale: 14, atmo: 0.14 },
-  { name: 'Jupiter', map: 'jupitermap.jpg', bump: null,              rim: [0.90, 0.72, 0.52], bumpScale: 0,  atmo: 0.8 },
-  { name: 'Neptune', map: 'neptunemap.jpg', bump: null,              rim: [0.35, 0.55, 1.00], bumpScale: 0,  atmo: 0.9 },
-  { name: 'Uranus',  map: 'uranusmap.jpg',  bump: null,              rim: [0.55, 0.85, 0.90], bumpScale: 0,  atmo: 0.85 },
-  { name: 'Pluto',   map: 'plutomap1k.jpg', bump: 'plutobump1k.jpg', rim: [0.72, 0.66, 0.60], bumpScale: 10, atmo: 0.2 },
+  { name: 'Mars',    map: TX + 'marsmap1k.jpg',  bump: TX + 'marsbump1k.jpg', rim: [0.95, 0.55, 0.40], bumpScale: 14, atmo: 0.7, rough: 0.98 },
+  { name: 'Jupiter', map: TX + 'jupitermap.jpg', rim: [0.92, 0.74, 0.54], atmo: 0.85, rough: 0.95 },
+  { name: 'Venus',   map: TX + 'venusmap.jpg',   bump: TX + 'venusbump.jpg', rim: [1.00, 0.80, 0.45], bumpScale: 9, atmo: 0.95, rough: 0.98 },
 ];
 const P = PLANETS[Math.floor(Math.random() * PLANETS.length)];
-const spin = 0.06 + Math.random() * 0.06; // 자전 속도(행성별 랜덤) — 눈에 보이게
+const spin = 0.05 + Math.random() * 0.05; // 자전 속도(랜덤)
 
 const R = 420;
 const planetGroup = new THREE.Group();
-planetGroup.rotation.z = 0.30 + Math.random() * 0.30; // 자전축 기울기(랜덤)
+planetGroup.rotation.z = 0.28 + Math.random() * 0.26; // 자전축 기울기(랜덤)
 // 화면 비율에 맞춰 배치: 데스크톱은 크게 잘려 웅장하게, 모바일은 우측에서 살짝 걸치게
 let planetBaseY = 255;
 function layoutPlanet() {
@@ -346,39 +340,59 @@ layoutPlanet();
 scene.add(planetGroup);
 
 // 태양광 (평행광) — 오늘 달 위상에 맞춘 방향 + 아주 옅은 우주 환경광
-const sun = new THREE.DirectionalLight(0xfff1e0, 3.2);
+const sun = new THREE.DirectionalLight(0xfff1e0, P.light ?? 3.0);
 sun.position.copy(SKY.sunDir);
 scene.add(sun);
-scene.add(new THREE.AmbientLight(0x14171f, 1.0)); // 그림자측 미세 필
+scene.add(new THREE.AmbientLight(0x1a1e26, 1.0)); // 그림자측 미세 필
 
 const texLoader = new THREE.TextureLoader();
 texLoader.setCrossOrigin('anonymous');
 const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
 const planet = new THREE.Mesh(
-  new THREE.SphereGeometry(R, 160, 160),
-  new THREE.MeshStandardMaterial({ color: 0x14171d, roughness: 0.98, metalness: 0.0, bumpScale: P.bumpScale }) // 텍스처 전엔 어둡게(흰 구체 플래시 방지)
+  new THREE.SphereGeometry(R, 192, 192),
+  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: P.rough, metalness: 0.0, bumpScale: P.bumpScale || 0, transparent: true, opacity: 0 })
 );
+planet.visible = false; // 텍스처 준비 전엔 숨김(검은 구체 방지)
 planetGroup.add(planet);
+let planetFadeIn = false;
+
+// 지구 전용 구름층 (살짝 큰 구 + 반투명, 표면보다 살짝 빠르게 어긋나 회전)
+let clouds = null;
+if (P.clouds) {
+  clouds = new THREE.Mesh(
+    new THREE.SphereGeometry(R * 1.012, 128, 128),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, roughness: 1.0 })
+  );
+  clouds.visible = false;
+  clouds.renderOrder = 1;
+  planetGroup.add(clouds);
+}
 
 function onTexLoaded() {
   // reduce 모드: 텍스처가 도착하면 그 프레임까지 렌더(이미 멈췄으면 재개)
   reduceRenderUntil = clock.elapsedTime + 0.6;
   if (REDUCE && !running && !contextLost) { running = true; clock.getDelta(); animate(); }
 }
-texLoader.load(CDN + P.map, (t) => {
+texLoader.load(P.map, (t) => {
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = maxAniso;
   planet.material.map = t;
-  planet.material.color.setHex(0xffffff); // 텍스처 도착 → 원래 밝기 복원
   planet.material.needsUpdate = true;
+  planet.visible = true; atmo.visible = true;       // 텍스처 준비 → 행성 등장
+  if (REDUCE) planet.material.opacity = 1; else planetFadeIn = true;
   onTexLoaded();
 });
-if (P.bump) texLoader.load(CDN + P.bump, (t) => {
-  t.anisotropy = maxAniso;
-  planet.material.bumpMap = t;
-  planet.material.needsUpdate = true;
-  onTexLoaded();
+if (P.bump) texLoader.load(P.bump, (t) => {
+  t.anisotropy = maxAniso; planet.material.bumpMap = t; planet.material.needsUpdate = true; onTexLoaded();
+});
+if (P.normal) texLoader.load(P.normal, (t) => {
+  t.anisotropy = maxAniso; planet.material.normalMap = t;
+  planet.material.normalScale = new THREE.Vector2(0.45, 0.45); planet.material.needsUpdate = true; onTexLoaded();
+});
+if (P.clouds && clouds) texLoader.load(P.clouds, (t) => {
+  t.anisotropy = maxAniso; clouds.material.alphaMap = t; clouds.material.needsUpdate = true;
+  clouds.visible = true; if (REDUCE) clouds.material.opacity = 0.55;
 });
 
 // 대기 림 (행성별 색·세기)
@@ -413,6 +427,8 @@ const atmo = new THREE.Mesh(
   })
 );
 planetGroup.add(atmo);
+atmo.visible = false; // 행성과 함께 등장
+atmo.renderOrder = 2;
 
 /* ============================================================
  *  4. 후처리 (은은한 Bloom)
@@ -549,6 +565,11 @@ function animate() {
     }
     planetGroup.position.y = planetBaseY + Math.sin(et * 0.4) * 7; // 미세한 부유
     atmo.scale.setScalar(1.0 + Math.sin(et * 0.5) * 0.014);     // 숨쉬는 대기 글로우
+    if (planetFadeIn && planet.material.opacity < 1) planet.material.opacity = Math.min(1, planet.material.opacity + dt * 1.8); // 행성 페이드인
+    if (clouds) {
+      clouds.rotation.y += dt * spin * 0.35; // 표면보다 살짝 빠르게
+      if (planetFadeIn && clouds.material.opacity < 0.55) clouds.material.opacity = Math.min(0.55, clouds.material.opacity + dt * 1.5);
+    }
     if (departing) {
       warp += (120 - warp) * dt * 2.5;                          // 떠남: 워프 가속
     } else {
