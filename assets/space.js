@@ -236,10 +236,12 @@ for (let i = 0; i < NCOMET; i++) resetComet(i, true);
  * ============================================================ */
 const NODES = [];
 for (let i = 0; i < 16; i++) {
+  const a = Math.random() * Math.PI * 2;
+  const r = Math.pow(Math.random(), 0.65);   // 중심 밀집
   NODES.push(new THREE.Vector3(
-    -120 + Math.random() * 520,    // 중앙~우측(텍스트·행성 사이 빈 영역)
-    140 + Math.random() * 680,     // 중앙~상단
-    -1750 - Math.random() * 260
+    150 + Math.cos(a) * r * 430,   // 타원 산포(사각형 느낌 제거)
+    460 + Math.sin(a) * r * 350,
+    -1760 - Math.random() * 240
   ));
 }
 // 별자리 노드(흩어진 점) — 은은한 점
@@ -502,6 +504,7 @@ let dragging = false, dragLX = 0, dragLY = 0, velY = 0, velX = 0;
 const isInteractive = (el) => el && el.closest && el.closest('a, button, input, textarea');
 window.addEventListener('pointerdown', (e) => {
   if (REDUCE || e.button !== 0 || isInteractive(e.target)) return;
+  e.preventDefault(); // 드래그 중 텍스트 선택 방지
   dragging = true; dragLX = e.clientX; dragLY = e.clientY; velY = velX = 0;
   document.body.classList.add('grabbing');
 });

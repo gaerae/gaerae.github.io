@@ -34,7 +34,7 @@ body {
   word-break: keep-all;
   cursor: grab;            /* 행성을 굴릴 수 있다는 어포던스 */
 }
-body.grabbing { cursor: grabbing; }
+body.grabbing { cursor: grabbing; user-select: none; -webkit-user-select: none; }
 
 /* 워프 투 블로그 — 떠남의 플래시 */
 #warpflash {
