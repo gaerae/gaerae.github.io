@@ -520,18 +520,26 @@ window.addEventListener('pointermove', (e) => {
   planetGroup.rotation.x = Math.max(-0.7, Math.min(0.7, planetGroup.rotation.x + velX));
 });
 
-// 워프 투 블로그: 떠나는 순간 별이 가속 → 플래시 후 이동(같은 탭)
+// 워프 투 이동: 떠나는 순간 별이 가속 → 플래시 후 이동(같은 탭) — 블로그·GitHub 버튼
 let departing = false;
 function warpDepart(url) {
   departing = true;
   document.body.classList.add('departing');
   setTimeout(() => { window.location.href = url; }, 650);
 }
-const blogBtn = document.querySelector('.cta .btn.primary');
-if (blogBtn) blogBtn.addEventListener('click', (e) => {
-  if (REDUCE || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // 새 탭/수정키는 기본 동작
-  e.preventDefault();
-  warpDepart(blogBtn.href);
+document.querySelectorAll('.cta .btn').forEach((b) => {
+  b.addEventListener('click', (e) => {
+    if (REDUCE || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // 새 탭/수정키는 기본 동작
+    e.preventDefault();
+    warpDepart(b.href);
+  });
+});
+
+// 뒤로가기(bfcache) 복원 시 플래시·워프 상태 초기화 (밝은 화면 잔상 방지)
+window.addEventListener('pageshow', () => {
+  departing = false;
+  document.body.classList.remove('departing');
+  warp = 1; warpTarget = 1;
 });
 
 // 행성 이름 라벨 — 접속 시 잠깐 표시
