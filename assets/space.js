@@ -231,89 +231,6 @@ function resetComet(i, initial) {
 for (let i = 0; i < NCOMET; i++) resetComet(i, true);
 
 /* ============================================================
- *  2-c. 별자리 — 흩어진 점이 별자리로 이어졌다 흩어짐
- *       ("흩어진 점을 별자리로 잇다"를 화면으로)
- * ============================================================ */
-const NODES = [];
-for (let i = 0; i < 16; i++) {
-  const a = Math.random() * Math.PI * 2;
-  const r = Math.pow(Math.random(), 0.65);   // 중심 밀집
-  NODES.push(new THREE.Vector3(
-    150 + Math.cos(a) * r * 430,   // 타원 산포(사각형 느낌 제거)
-    460 + Math.sin(a) * r * 350,
-    -1760 - Math.random() * 240
-  ));
-}
-// 별자리 노드(흩어진 점) — 은은한 점
-const nodeGeo = new THREE.BufferGeometry().setFromPoints(NODES);
-const nodes = new THREE.Points(nodeGeo, new THREE.PointsMaterial({
-  color: 0xbcd0f0, size: 3.0, sizeAttenuation: false,
-  transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false,
-}));
-scene.add(nodes);
-
-// 별자리 선
-const CMAXSEG = 6;
-const conLinePos = new Float32Array(CMAXSEG * 2 * 3);
-const conLineCol = new Float32Array(CMAXSEG * 2 * 3);
-const conGeo = new THREE.BufferGeometry();
-conGeo.setAttribute('position', new THREE.BufferAttribute(conLinePos, 3));
-conGeo.setAttribute('color', new THREE.BufferAttribute(conLineCol, 3));
-const conLines = new THREE.LineSegments(conGeo, new THREE.LineBasicMaterial({
-  vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
-}));
-scene.add(conLines);
-
-let conPath = [], conAlpha = 0, conPhase = 'idle', conTimer = 2 + Math.random() * 4;
-function chooseConstellation() {
-  const used = new Set();
-  let cur = Math.floor(Math.random() * NODES.length);
-  const path = [cur]; used.add(cur);
-  const len = 4 + Math.floor(Math.random() * 3); // 4~6개 점
-  for (let s = 1; s < len; s++) {
-    let best = -1, bd = 1e9;
-    for (let j = 0; j < NODES.length; j++) {
-      if (used.has(j)) continue;
-      const d = NODES[cur].distanceTo(NODES[j]);
-      if (d < bd && d < 720) { bd = d; best = j; }
-    }
-    if (best < 0) break;
-    path.push(best); used.add(best); cur = best;
-  }
-  return path;
-}
-function updateConstellation(dt) {
-  if (REDUCE) { conAlpha = 0; }
-  else if (conPhase === 'idle') {
-    conTimer -= dt;
-    if (conTimer <= 0) { conPath = chooseConstellation(); conPhase = 'in'; }
-  } else if (conPhase === 'in') {
-    conAlpha = Math.min(1, conAlpha + dt / 1.4);
-    if (conAlpha >= 1) { conPhase = 'hold'; conTimer = 3.5 + Math.random() * 2.5; }
-  } else if (conPhase === 'hold') {
-    conTimer -= dt;
-    if (conTimer <= 0) conPhase = 'out';
-  } else { // out
-    conAlpha = Math.max(0, conAlpha - dt / 1.6);
-    if (conAlpha <= 0) { conPhase = 'idle'; conTimer = 6 + Math.random() * 7; }
-  }
-  const ease = conAlpha * conAlpha * (3 - 2 * conAlpha);
-  let o = 0;
-  for (let k = 0; k < conPath.length - 1; k++) {
-    const a = NODES[conPath[k]], b = NODES[conPath[k + 1]];
-    const br = ease * 1.15;
-    conLinePos[o] = a.x; conLinePos[o + 1] = a.y; conLinePos[o + 2] = a.z;
-    conLinePos[o + 3] = b.x; conLinePos[o + 4] = b.y; conLinePos[o + 5] = b.z;
-    conLineCol[o] = br * 0.7; conLineCol[o + 1] = br * 0.85; conLineCol[o + 2] = br;
-    conLineCol[o + 3] = br * 0.7; conLineCol[o + 4] = br * 0.85; conLineCol[o + 5] = br;
-    o += 6;
-  }
-  for (; o < conLinePos.length; o++) { conLinePos[o] = 0; conLineCol[o] = 0; }
-  conGeo.attributes.position.needsUpdate = true;
-  conGeo.attributes.color.needsUpdate = true;
-}
-
-/* ============================================================
  *  3. 행성 (실제 텍스처 · 실사 라이팅) — 접속마다 랜덤
  * ============================================================ */
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -587,7 +504,6 @@ function animate() {
       warpTarget += (1 - warpTarget) * dt * 1.6;
       warp += (warpTarget - warp) * dt * 4.0;
     }
-    updateConstellation(dt);                                    // 별자리
   }
 
   // 워프 별 (reduce면 정지 · 점으로 표시)
