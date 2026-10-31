@@ -15,25 +15,44 @@ let renderer;
 try {
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 } catch (e) {
-  document.body.classList.add('no-webgl');
+  document.body.classList.add('no-webgl', 'ready'); // 로더 해제 + 폴백 배경
   throw e;
 }
 
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const isMobile = window.matchMedia('(max-width: 760px)').matches;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2)); // 모바일 품질 스케일
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x01020a, 1);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 8000);
 const clock = new THREE.Clock();
+const REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches; // 모션 최소화 선호
+let running = true;          // 탭 숨김 / 컨텍스트 손실 시 렌더 정지
+let contextLost = false;
+let reduceRenderUntil = 2.4; // reduce 모드: 텍스처 로드까지만 렌더 후 정지(초)
 
-// 태양(광원) 방향 — 화면 왼쪽 위에서 비추는 느낌 (뷰 공간 고정)
-const LIGHT_DIR = new THREE.Vector3(-0.72, 0.28, 0.35).normalize();
+/* 방문자 현지 시간 · 오늘 달 위상에 맞춘 하늘 (실재와 동기화) */
+function computeSky() {
+  const now = new Date();
+  const hour = now.getHours() + now.getMinutes() / 60;
+  const dayness = 0.5 - 0.5 * Math.cos((hour / 24) * Math.PI * 2); // 0 자정 … 1 정오
+  const night = 1 - dayness;
+  const synodic = 29.53058867;
+  const refNew = Date.UTC(2000, 0, 6, 18, 14) / 86400000;
+  let ph = (((now.getTime() / 86400000) - refNew) % synodic) / synodic;
+  if (ph < 0) ph += 1;
+  const illum = 0.5 * (1 - Math.cos(ph * Math.PI * 2)); // 0 그믐 … 1 보름
+  const theta = (1 - Math.max(0.12, illum)) * 0.82 * Math.PI; // 밝은 면 비율 → 태양 각(완전 암흑 방지)
+  const sunDir = new THREE.Vector3(Math.sin(theta) * -0.78, Math.sin(theta) * 0.34 + 0.12, Math.cos(theta)).normalize();
+  return { night, illum, sunDir };
+}
+const SKY = computeSky();
 
 /* ============================================================
- *  1. 성간 배경 (딥스페이스 먼지 + 사실적 별)
+ *  1. 성간 배경 (딥스페이스 먼지 + 사실적 별 · 현지 시간 반영)
  * ============================================================ */
-const nebulaUniforms = { uTime: { value: 0 } };
+const nebulaUniforms = { uTime: { value: 0 }, uNight: { value: SKY.night } };
 
 const nebula = new THREE.Mesh(
   new THREE.SphereGeometry(6000, 64, 64),
@@ -52,6 +71,7 @@ const nebula = new THREE.Mesh(
       precision highp float;
       varying vec3 vDir;
       uniform float uTime;
+      uniform float uNight;
 
       float hash(vec3 p){ p = fract(p*0.3183099 + 0.1); p *= 17.0;
         return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
@@ -86,29 +106,44 @@ const nebula = new THREE.Mesh(
 
       void main(){
         vec3 dir = normalize(vDir);
-        float t = uTime * 0.006;
+        float t = uTime * 0.02;   // 느리게 흐름
 
         // 은하수 띠 (살짝 기울인 평면)
         vec3 axis = normalize(vec3(0.35, 1.0, 0.15));
         float lat = dot(dir, axis);
         float band = exp(-pow(lat*3.4, 2.0));
 
-        // 성간 먼지 — 채도 낮은 청회색, 은하수 부근에 집중
-        float dust = pow(clamp(fbm(dir*3.4 + t) * 0.65 + fbm(dir*7.0 - t*0.5)*0.4, 0.0, 1.0), 2.6);
+        // 흐르는 오로라 — 도메인 워프된 fbm 이 천천히 일렁임
+        vec3 q = dir * 2.2;
+        vec3 w = vec3(fbm(q + vec3(0.0, t, 0.0)),
+                      fbm(q + vec3(t*0.7, 0.0, 1.3)),
+                      fbm(q + vec3(1.7, t*0.5, 0.0)));
+        float aur = fbm(q * 1.4 + w * 1.6 + vec3(-t*0.5, t*0.3, t*0.2));
+        aur = pow(clamp(aur, 0.0, 1.0), 2.0);
+        // 색이 천천히 순환 (teal ↔ violet ↔ blue)
+        float hue = fbm(q * 0.8 + vec3(t * 0.4));
+        vec3 aurCol = mix(mix(vec3(0.08, 0.42, 0.52), vec3(0.34, 0.18, 0.60),
+                              smoothstep(0.30, 0.70, hue)),
+                          vec3(0.10, 0.26, 0.58), smoothstep(0.55, 0.95, hue));
+
+        // 성간 먼지(사실적 바탕)
+        float dust = pow(clamp(fbm(dir*3.4 + t*0.3) * 0.65 + fbm(dir*7.0 - t*0.2)*0.4, 0.0, 1.0), 2.6);
         dust *= (0.35 + band * 0.9);
-        vec3 dustCool = vec3(0.05, 0.08, 0.14);
-        vec3 dustWarm = vec3(0.12, 0.10, 0.11);
-        vec3 dustCol = mix(dustCool, dustWarm, fbm(dir*5.0));
 
-        vec3 col = vec3(0.004, 0.006, 0.014);      // 심우주 바탕
-        col += dustCol * dust * 0.55;
-        col += vec3(0.05, 0.07, 0.12) * band * 0.10; // 은하수 미광
+        vec3 col = vec3(0.004, 0.006, 0.014);          // 심우주 바탕
+        col += vec3(0.05, 0.07, 0.12) * dust * 0.5;    // 먼지
+        col += aurCol * aur * (0.13 + band * 0.22);    // 오로라 (은은)
+        col += vec3(0.05, 0.07, 0.12) * band * 0.10;   // 은하수 미광
 
-        // 별 (여러 층으로 깊이감)
-        col += starLayer(dir, 130.0, 0.986) * 1.2;
-        col += starLayer(dir, 260.0, 0.992) * 0.9;
-        col += starLayer(dir, 520.0, 0.996) * 0.6;
-        col += starLayer(dir, 90.0,  0.978) * (0.5 + band*0.8); // 은하수 밀집 별
+        // 별 (여러 층으로 깊이감) — 밤일수록 더 또렷
+        float sb = 0.6 + 0.7 * uNight;
+        col += starLayer(dir, 130.0, 0.986) * 1.2 * sb;
+        col += starLayer(dir, 260.0, 0.992) * 0.9 * sb;
+        col += starLayer(dir, 520.0, 0.996) * 0.6 * sb;
+        col += starLayer(dir, 90.0,  0.978) * (0.5 + band*0.8) * sb; // 은하수 밀집 별
+
+        // 낮일수록 옅은 하늘빛 (방문자 현지 시간)
+        col += vec3(0.03, 0.06, 0.11) * (1.0 - uNight) * 0.5;
 
         gl_FragColor = vec4(col, 1.0);
       }
@@ -120,7 +155,7 @@ scene.add(nebula);
 /* ============================================================
  *  2. 워프 스타필드 (여행감 · 스크롤 시 가속)
  * ============================================================ */
-const STAR_COUNT = 2200;
+const STAR_COUNT = isMobile ? 1200 : 2200;
 const SPREAD = 900;
 const DEPTH = 2400;
 const positions = new Float32Array(STAR_COUNT * 2 * 3);
@@ -142,7 +177,7 @@ function spawnStar(i, atFar) {
   const x = Math.cos(ang) * rad;
   const y = Math.sin(ang) * rad * 0.72;
   const z = atFar ? -DEPTH * Math.random() : -DEPTH;
-  const speed = 150 + Math.random() * 360;
+  const speed = 34 + Math.random() * 74;   // 느린 드리프트
   const c = palette[(Math.random() * palette.length) | 0];
   const b = 0.45 + Math.random() * 0.55;
   starData[i] = { x, y, z, speed, r: c[0] * b, g: c[1] * b, b: c[2] * b };
@@ -185,15 +220,96 @@ function resetComet(i, initial) {
     x: fromLeft ? -950 : 950,
     y: 160 + Math.random() * 420,
     z: -500 - Math.random() * 520,
-    vx: (fromLeft ? 1 : -1) * (520 + Math.random() * 300),
-    vy: -(240 + Math.random() * 220),
+    vx: (fromLeft ? 1 : -1) * (300 + Math.random() * 220),
+    vy: -(150 + Math.random() * 150),
     life: 0,
-    dur: 1.3 + Math.random() * 1.1,
-    delay: initial ? (2 + Math.random() * 16) : (8 + Math.random() * 20),
+    dur: 1.8 + Math.random() * 1.4,
+    delay: initial ? (3 + Math.random() * 18) : (12 + Math.random() * 24),
     active: false,
   };
 }
 for (let i = 0; i < NCOMET; i++) resetComet(i, true);
+
+/* ============================================================
+ *  2-c. 별자리 — 흩어진 점이 별자리로 이어졌다 흩어짐
+ *       ("흩어진 점을 별자리로 잇다"를 화면으로)
+ * ============================================================ */
+const NODES = [];
+for (let i = 0; i < 16; i++) {
+  NODES.push(new THREE.Vector3(
+    -120 + Math.random() * 520,    // 중앙~우측(텍스트·행성 사이 빈 영역)
+    140 + Math.random() * 680,     // 중앙~상단
+    -1750 - Math.random() * 260
+  ));
+}
+// 별자리 노드(흩어진 점) — 은은한 점
+const nodeGeo = new THREE.BufferGeometry().setFromPoints(NODES);
+const nodes = new THREE.Points(nodeGeo, new THREE.PointsMaterial({
+  color: 0xbcd0f0, size: 3.0, sizeAttenuation: false,
+  transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false,
+}));
+scene.add(nodes);
+
+// 별자리 선
+const CMAXSEG = 6;
+const conLinePos = new Float32Array(CMAXSEG * 2 * 3);
+const conLineCol = new Float32Array(CMAXSEG * 2 * 3);
+const conGeo = new THREE.BufferGeometry();
+conGeo.setAttribute('position', new THREE.BufferAttribute(conLinePos, 3));
+conGeo.setAttribute('color', new THREE.BufferAttribute(conLineCol, 3));
+const conLines = new THREE.LineSegments(conGeo, new THREE.LineBasicMaterial({
+  vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+}));
+scene.add(conLines);
+
+let conPath = [], conAlpha = 0, conPhase = 'idle', conTimer = 2 + Math.random() * 4;
+function chooseConstellation() {
+  const used = new Set();
+  let cur = Math.floor(Math.random() * NODES.length);
+  const path = [cur]; used.add(cur);
+  const len = 4 + Math.floor(Math.random() * 3); // 4~6개 점
+  for (let s = 1; s < len; s++) {
+    let best = -1, bd = 1e9;
+    for (let j = 0; j < NODES.length; j++) {
+      if (used.has(j)) continue;
+      const d = NODES[cur].distanceTo(NODES[j]);
+      if (d < bd && d < 720) { bd = d; best = j; }
+    }
+    if (best < 0) break;
+    path.push(best); used.add(best); cur = best;
+  }
+  return path;
+}
+function updateConstellation(dt) {
+  if (REDUCE) { conAlpha = 0; }
+  else if (conPhase === 'idle') {
+    conTimer -= dt;
+    if (conTimer <= 0) { conPath = chooseConstellation(); conPhase = 'in'; }
+  } else if (conPhase === 'in') {
+    conAlpha = Math.min(1, conAlpha + dt / 1.4);
+    if (conAlpha >= 1) { conPhase = 'hold'; conTimer = 3.5 + Math.random() * 2.5; }
+  } else if (conPhase === 'hold') {
+    conTimer -= dt;
+    if (conTimer <= 0) conPhase = 'out';
+  } else { // out
+    conAlpha = Math.max(0, conAlpha - dt / 1.6);
+    if (conAlpha <= 0) { conPhase = 'idle'; conTimer = 6 + Math.random() * 7; }
+  }
+  const ease = conAlpha * conAlpha * (3 - 2 * conAlpha);
+  let o = 0;
+  for (let k = 0; k < conPath.length - 1; k++) {
+    const a = NODES[conPath[k]], b = NODES[conPath[k + 1]];
+    const br = ease * 1.15;
+    conLinePos[o] = a.x; conLinePos[o + 1] = a.y; conLinePos[o + 2] = a.z;
+    conLinePos[o + 3] = b.x; conLinePos[o + 4] = b.y; conLinePos[o + 5] = b.z;
+    conLineCol[o] = br * 0.7; conLineCol[o + 1] = br * 0.85; conLineCol[o + 2] = br;
+    conLineCol[o + 3] = br * 0.7; conLineCol[o + 4] = br * 0.85; conLineCol[o + 5] = br;
+    o += 6;
+  }
+  for (; o < conLinePos.length; o++) { conLinePos[o] = 0; conLineCol[o] = 0; }
+  conGeo.attributes.position.needsUpdate = true;
+  conGeo.attributes.color.needsUpdate = true;
+}
 
 /* ============================================================
  *  3. 행성 (실제 텍스처 · 실사 라이팅) — 접속마다 랜덤
@@ -203,15 +319,15 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 const CDN = 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/';
 // map: 색상, bump: 요철(선택), rim: 대기 색, atmo: 대기 세기(무대기 천체는 낮게)
 const PLANETS = [
-  { map: 'marsmap1k.jpg',  bump: 'marsbump1k.jpg',  rim: [0.95, 0.55, 0.40], bumpScale: 12, atmo: 0.7 },
-  { map: 'earthmap1k.jpg', bump: 'earthbump1k.jpg', rim: [0.35, 0.60, 1.00], bumpScale: 10, atmo: 1.0 },
-  { map: 'mercurymap.jpg', bump: 'mercurybump.jpg', rim: [0.62, 0.62, 0.64], bumpScale: 12, atmo: 0.18 },
-  { map: 'venusmap.jpg',   bump: 'venusbump.jpg',   rim: [1.00, 0.80, 0.45], bumpScale: 8,  atmo: 0.95 },
-  { map: 'moonmap1k.jpg',  bump: 'moonbump1k.jpg',  rim: [0.55, 0.60, 0.68], bumpScale: 14, atmo: 0.14 },
-  { map: 'jupitermap.jpg', bump: null,              rim: [0.90, 0.72, 0.52], bumpScale: 0,  atmo: 0.8 },
-  { map: 'neptunemap.jpg', bump: null,              rim: [0.35, 0.55, 1.00], bumpScale: 0,  atmo: 0.9 },
-  { map: 'uranusmap.jpg',  bump: null,              rim: [0.55, 0.85, 0.90], bumpScale: 0,  atmo: 0.85 },
-  { map: 'plutomap1k.jpg', bump: 'plutobump1k.jpg', rim: [0.72, 0.66, 0.60], bumpScale: 10, atmo: 0.2 },
+  { name: 'Mars',    map: 'marsmap1k.jpg',  bump: 'marsbump1k.jpg',  rim: [0.95, 0.55, 0.40], bumpScale: 12, atmo: 0.7 },
+  { name: 'Earth',   map: 'earthmap1k.jpg', bump: 'earthbump1k.jpg', rim: [0.35, 0.60, 1.00], bumpScale: 10, atmo: 1.0 },
+  { name: 'Mercury', map: 'mercurymap.jpg', bump: 'mercurybump.jpg', rim: [0.62, 0.62, 0.64], bumpScale: 12, atmo: 0.18 },
+  { name: 'Venus',   map: 'venusmap.jpg',   bump: 'venusbump.jpg',   rim: [1.00, 0.80, 0.45], bumpScale: 8,  atmo: 0.95 },
+  { name: 'Moon',    map: 'moonmap1k.jpg',  bump: 'moonbump1k.jpg',  rim: [0.55, 0.60, 0.68], bumpScale: 14, atmo: 0.14 },
+  { name: 'Jupiter', map: 'jupitermap.jpg', bump: null,              rim: [0.90, 0.72, 0.52], bumpScale: 0,  atmo: 0.8 },
+  { name: 'Neptune', map: 'neptunemap.jpg', bump: null,              rim: [0.35, 0.55, 1.00], bumpScale: 0,  atmo: 0.9 },
+  { name: 'Uranus',  map: 'uranusmap.jpg',  bump: null,              rim: [0.55, 0.85, 0.90], bumpScale: 0,  atmo: 0.85 },
+  { name: 'Pluto',   map: 'plutomap1k.jpg', bump: 'plutobump1k.jpg', rim: [0.72, 0.66, 0.60], bumpScale: 10, atmo: 0.2 },
 ];
 const P = PLANETS[Math.floor(Math.random() * PLANETS.length)];
 const spin = 0.06 + Math.random() * 0.06; // 자전 속도(행성별 랜덤) — 눈에 보이게
@@ -220,16 +336,18 @@ const R = 420;
 const planetGroup = new THREE.Group();
 planetGroup.rotation.z = 0.30 + Math.random() * 0.30; // 자전축 기울기(랜덤)
 // 화면 비율에 맞춰 배치: 데스크톱은 크게 잘려 웅장하게, 모바일은 우측에서 살짝 걸치게
+let planetBaseY = 255;
 function layoutPlanet() {
   if (window.innerWidth < 760) planetGroup.position.set(660, 190, -1440);
   else planetGroup.position.set(880, 255, -1430);
+  planetBaseY = planetGroup.position.y;
 }
 layoutPlanet();
 scene.add(planetGroup);
 
-// 태양광 (평행광) + 아주 옅은 우주 환경광
+// 태양광 (평행광) — 오늘 달 위상에 맞춘 방향 + 아주 옅은 우주 환경광
 const sun = new THREE.DirectionalLight(0xfff1e0, 3.2);
-sun.position.set(-1.0, 0.5, 0.75); // 왼쪽 위 앞에서
+sun.position.copy(SKY.sunDir);
 scene.add(sun);
 scene.add(new THREE.AmbientLight(0x14171f, 1.0)); // 그림자측 미세 필
 
@@ -239,20 +357,28 @@ const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
 const planet = new THREE.Mesh(
   new THREE.SphereGeometry(R, 160, 160),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.98, metalness: 0.0, bumpScale: P.bumpScale })
+  new THREE.MeshStandardMaterial({ color: 0x14171d, roughness: 0.98, metalness: 0.0, bumpScale: P.bumpScale }) // 텍스처 전엔 어둡게(흰 구체 플래시 방지)
 );
 planetGroup.add(planet);
 
+function onTexLoaded() {
+  // reduce 모드: 텍스처가 도착하면 그 프레임까지 렌더(이미 멈췄으면 재개)
+  reduceRenderUntil = clock.elapsedTime + 0.6;
+  if (REDUCE && !running && !contextLost) { running = true; clock.getDelta(); animate(); }
+}
 texLoader.load(CDN + P.map, (t) => {
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = maxAniso;
   planet.material.map = t;
+  planet.material.color.setHex(0xffffff); // 텍스처 도착 → 원래 밝기 복원
   planet.material.needsUpdate = true;
+  onTexLoaded();
 });
 if (P.bump) texLoader.load(CDN + P.bump, (t) => {
   t.anisotropy = maxAniso;
   planet.material.bumpMap = t;
   planet.material.needsUpdate = true;
+  onTexLoaded();
 });
 
 // 대기 림 (행성별 색·세기)
@@ -261,7 +387,7 @@ const atmo = new THREE.Mesh(
   new THREE.ShaderMaterial({
     side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
     uniforms: {
-      uLight: { value: new THREE.Vector3(-1.0, 0.5, 0.75).normalize() },
+      uLight: { value: SKY.sunDir.clone() },
       uColor: { value: new THREE.Color(P.rim[0], P.rim[1], P.rim[2]) },
       uStrength: { value: P.atmo },
     },
@@ -306,8 +432,8 @@ const grade = new ShaderPass({
   uniforms: {
     tDiffuse: { value: null },
     uTime: { value: 0 },
-    uAberration: { value: 0.0011 },
-    uGrain: { value: 0.022 },
+    uAberration: { value: 0.0006 },
+    uGrain: { value: 0.010 },
   },
   vertexShader: /* glsl */`
     varying vec2 vUv;
@@ -352,8 +478,50 @@ let lastScroll = window.scrollY;
 window.addEventListener('scroll', () => {
   const dy = Math.abs(window.scrollY - lastScroll);
   lastScroll = window.scrollY;
-  warpTarget = Math.min(6, 1 + dy * 0.06);
+  warpTarget = Math.min(2.4, 1 + dy * 0.03);   // 스크롤 가속 완만하게
 }, { passive: true });
+
+// 인터랙티브 행성: 드래그로 굴리기(관성)
+let dragging = false, dragLX = 0, dragLY = 0, velY = 0, velX = 0;
+const isInteractive = (el) => el && el.closest && el.closest('a, button, input, textarea');
+window.addEventListener('pointerdown', (e) => {
+  if (REDUCE || e.button !== 0 || isInteractive(e.target)) return;
+  dragging = true; dragLX = e.clientX; dragLY = e.clientY; velY = velX = 0;
+  document.body.classList.add('grabbing');
+});
+window.addEventListener('pointerup', () => {
+  if (dragging) { dragging = false; document.body.classList.remove('grabbing'); }
+});
+window.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const dx = e.clientX - dragLX, dy = e.clientY - dragLY;
+  dragLX = e.clientX; dragLY = e.clientY;
+  velY = dx * 0.006; velX = dy * 0.006;
+  planetGroup.rotation.y += velY;
+  planetGroup.rotation.x = Math.max(-0.7, Math.min(0.7, planetGroup.rotation.x + velX));
+});
+
+// 워프 투 블로그: 떠나는 순간 별이 가속 → 플래시 후 이동(같은 탭)
+let departing = false;
+function warpDepart(url) {
+  departing = true;
+  document.body.classList.add('departing');
+  setTimeout(() => { window.location.href = url; }, 650);
+}
+const blogBtn = document.querySelector('.cta .btn.primary');
+if (blogBtn) blogBtn.addEventListener('click', (e) => {
+  if (REDUCE || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // 새 탭/수정키는 기본 동작
+  e.preventDefault();
+  warpDepart(blogBtn.href);
+});
+
+// 행성 이름 라벨 — 접속 시 잠깐 표시
+const planetLabel = document.getElementById('planet-label');
+if (planetLabel) {
+  planetLabel.innerHTML = '◦&nbsp; ' + P.name;
+  setTimeout(() => planetLabel.classList.add('show'), 700);
+  setTimeout(() => planetLabel.classList.remove('show'), 5400);
+}
 
 /* ============================================================
  *  6. 렌더 루프
@@ -362,35 +530,56 @@ const pos = starGeo.attributes.position.array;
 const col = starGeo.attributes.color.array;
 
 function animate() {
+  if (!running || contextLost) return;
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
-  const t = clock.elapsedTime;
+  const et = clock.elapsedTime;
+  const tt = REDUCE ? 0.0 : et;   // 셰이더 시간 (reduce면 정지)
 
-  nebulaUniforms.uTime.value = t;
-  grade.uniforms.uTime.value = t;
-  planetGroup.rotation.y += dt * spin; // 자전
+  nebulaUniforms.uTime.value = tt;
+  grade.uniforms.uTime.value = tt;
 
-  warpTarget += (1 - warpTarget) * dt * 1.6;
-  warp += (warpTarget - warp) * dt * 4.0;
+  if (!REDUCE) {
+    planetGroup.rotation.y += dt * spin;                        // 자전
+    if (!dragging) {                                            // 드래그 관성 + 수평 복귀
+      planetGroup.rotation.y += velY;
+      planetGroup.rotation.x = Math.max(-0.7, Math.min(0.7, planetGroup.rotation.x + velX));
+      velY *= 0.94; velX *= 0.94;
+      planetGroup.rotation.x += (0 - planetGroup.rotation.x) * dt * 0.25;
+    }
+    planetGroup.position.y = planetBaseY + Math.sin(et * 0.4) * 7; // 미세한 부유
+    atmo.scale.setScalar(1.0 + Math.sin(et * 0.5) * 0.014);     // 숨쉬는 대기 글로우
+    if (departing) {
+      warp += (120 - warp) * dt * 2.5;                          // 떠남: 워프 가속
+    } else {
+      warpTarget += (1 - warpTarget) * dt * 1.6;
+      warp += (warpTarget - warp) * dt * 4.0;
+    }
+    updateConstellation(dt);                                    // 별자리
+  }
 
+  // 워프 별 (reduce면 정지 · 점으로 표시)
+  const sw = REDUCE ? 0 : warp;
+  const tailMul = REDUCE ? 1.0 : 0.08;
   for (let i = 0; i < STAR_COUNT; i++) {
     const s = starData[i];
-    s.z += s.speed * warp * dt;
-    if (s.z > 60) spawnStar(i, false);
-    const streak = Math.min(s.speed * warp * dt * 2.4, 700);
+    s.z += s.speed * sw * dt;
+    if (!REDUCE && s.z > 60) spawnStar(i, false);
+    const streak = REDUCE ? 2.0 : Math.min(s.speed * warp * dt * 3.2, departing ? 1600 : 90); // 짧고 부드러운 꼬리
     const o = i * 6;
     pos[o] = s.x; pos[o + 1] = s.y; pos[o + 2] = s.z;
     pos[o + 3] = s.x; pos[o + 4] = s.y; pos[o + 5] = s.z - streak;
     col[o] = s.r; col[o + 1] = s.g; col[o + 2] = s.b;
-    col[o + 3] = s.r * 0.08; col[o + 4] = s.g * 0.08; col[o + 5] = s.b * 0.08;
+    col[o + 3] = s.r * tailMul; col[o + 4] = s.g * tailMul; col[o + 5] = s.b * tailMul;
   }
   starGeo.attributes.position.needsUpdate = true;
   starGeo.attributes.color.needsUpdate = true;
 
-  // 유성 업데이트
+  // 유성 (reduce면 숨김)
   for (let i = 0; i < NCOMET; i++) {
     const c = cometState[i];
     const o = i * 6;
+    if (REDUCE) { for (let k = 0; k < 6; k++) { cometPos[o + k] = 0; cometCol[o + k] = 0; } continue; }
     if (!c.active) {
       c.delay -= dt;
       if (c.delay <= 0) { c.active = true; c.life = 0; }
@@ -410,19 +599,24 @@ function animate() {
   cometGeo.attributes.position.needsUpdate = true;
   cometGeo.attributes.color.needsUpdate = true;
 
-  mouse.x += (mouse.tx - mouse.x) * dt * 2.5;
-  mouse.y += (mouse.ty - mouse.y) * dt * 2.5;
-  camera.rotation.y = -mouse.x * 0.22;
-  camera.rotation.x = mouse.y * 0.15;
-  camera.position.x = mouse.x * 34;
-  camera.position.y = -mouse.y * 26;
+  // 마우스 패럴랙스 (reduce / 드래그 중엔 정지)
+  if (!REDUCE && !dragging) {
+    mouse.x += (mouse.tx - mouse.x) * dt * 1.1;   // 느린 easing
+    mouse.y += (mouse.ty - mouse.y) * dt * 1.1;
+    camera.rotation.y = -mouse.x * 0.17;
+    camera.rotation.x = mouse.y * 0.11;
+    camera.position.x = mouse.x * 26;
+    camera.position.y = -mouse.y * 20;
+  }
 
   composer.render();
+
+  if (REDUCE && et > reduceRenderUntil) running = false; // 정지(배터리 절약)
 }
 animate();
 
 /* ============================================================
- *  7. 리사이즈 + 로더 해제
+ *  7. 리사이즈 · 가시성 · 컨텍스트 복구 · 로더 해제
  * ============================================================ */
 window.addEventListener('resize', () => {
   const w = window.innerWidth, h = window.innerHeight;
@@ -431,6 +625,17 @@ window.addEventListener('resize', () => {
   composer.setSize(w, h);
   bloom.setSize(w, h);
   layoutPlanet();
+  if (!running && !contextLost) composer.render(); // 정지 상태에서도 레이아웃 반영
 });
+
+// 탭 숨김 시 렌더 정지(배터리 절약), 복귀 시 재개
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { running = false; }
+  else if (!running && !contextLost) { running = true; clock.getDelta(); animate(); }
+});
+
+// WebGL 컨텍스트 손실/복구
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); contextLost = true; running = false; });
+canvas.addEventListener('webglcontextrestored', () => { contextLost = false; running = true; clock.getDelta(); animate(); });
 
 requestAnimationFrame(() => document.body.classList.add('ready'));

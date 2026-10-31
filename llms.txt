@@ -1,0 +1,11 @@
+# gaerae.com (개래닷컴)
+
+> 개발자 '개래(gaerae)'의 개인 사이트. 개발자를 위한 블로그 '개발자스럽다'와 소셜 채널로 이어지는 허브입니다.
+
+## 주요 링크
+- 블로그 개발자스럽다: https://blog.gaerae.com
+- GitHub: https://github.com/gaerae
+- LinkedIn: https://www.linkedin.com/company/gaeraecom
+- X: https://x.com/gaeraecom
+- Instagram: https://www.instagram.com/gaeraecom
+- YouTube: https://youtube.com/gaeraecom

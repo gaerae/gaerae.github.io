@@ -15,6 +15,7 @@
   <title>개래닷컴</title>
   <meta name="description" content="개발자를 위한 블로그, 개발자스럽다.">
   <meta name="theme-color" content="#01020a">
+  <link rel="canonical" href="https://gaerae.com/">
 
   <!-- Favicon -->
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
@@ -42,8 +43,11 @@
   <script type='application/ld+json'>{
     "@context": "https://schema.org",
     "@type": "Person",
+    "@id": "https://gaerae.com/#person",
     "name": "개래닷컴",
     "alternateName": "gaerae",
+    "description": "개발자를 위한 블로그 '개발자스럽다'를 운영하는 개발자.",
+    "knowsAbout": ["소프트웨어 개발", "기술 블로깅"],
     "url": "https://gaerae.com",
     "sameAs": [
       "https://blog.gaerae.com",
@@ -54,6 +58,21 @@
       "https://www.instagram.com/gaeraecom",
       "https://youtube.com/gaeraecom"
     ]
+  }</script>
+  <script type='application/ld+json'>{
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "개래닷컴",
+    "url": "https://gaerae.com",
+    "description": "개발자를 위한 블로그, 개발자스럽다.",
+    "inLanguage": "ko"
+  }</script>
+  <script type='application/ld+json'>{
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    "url": "https://gaerae.com",
+    "inLanguage": "ko",
+    "mainEntity": { "@id": "https://gaerae.com/#person" }
   }</script>
 
   <!-- Fonts -->
@@ -66,23 +85,23 @@
   <link rel="stylesheet" href="assets/space.css">
 
   <!-- Three.js (WebGL) -->
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js">
   <script type="importmap">
   {
     "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
     }
   }
   </script>
 </head>
 <body>
 
-<!-- 로더 -->
-<div id="loader"><div class="orbit"></div></div>
-
 <!-- WebGL 우주 배경 -->
-<canvas id="space"></canvas>
-<div class="vignette"></div>
+<canvas id="space" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div id="warpflash" aria-hidden="true"></div>
+<div id="planet-label" aria-hidden="true"></div>
 
 <!-- 네비게이션 -->
 <nav class="nav" id="nav">
@@ -91,12 +110,14 @@
 
 <main class="content">
 
+  <h1 class="sr-only">개래닷컴 — 개발자를 위한 블로그, 개발자스럽다</h1>
+
   <!-- 허브 (한 화면) -->
   <header class="hero wrap">
-    <h1 id="headline">
+    <blockquote id="headline">
       <span class="glow">천천히 가도 좋다<br>멈추지만 않는다면</span>
       <cite class="who">Confucius</cite>
-    </h1>
+    </blockquote>
 
     <div class="cta">
       <a class="btn primary" href="https://blog.gaerae.com" target="_blank" rel="noopener">개발자스럽다 블로그</a>
@@ -170,8 +191,8 @@
         hi = n;
         paint();
         hl.classList.add('show');
-      }, 650);
-    }, 5800);
+      }, 800);
+    }, 6500);
   }
 </script>
 </body>

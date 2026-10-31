@@ -27,9 +27,29 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
   word-break: keep-all;
+  cursor: grab;            /* 행성을 굴릴 수 있다는 어포던스 */
 }
+body.grabbing { cursor: grabbing; }
 
-/* WebGL 캔버스 — 전체 화면 고정 배경 */
+/* 워프 투 블로그 — 떠남의 플래시 */
+#warpflash {
+  position: fixed; inset: 0; z-index: 40; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle at 72% 46%, rgba(222,236,255,0.92), rgba(140,180,255,0.5) 34%, rgba(5,8,20,0) 70%);
+  transition: opacity 0.62s ease;
+}
+body.departing #warpflash { opacity: 1; }
+
+/* 행성 이름 라벨 (접속 시 잠깐) */
+#planet-label {
+  position: fixed; top: 22px; right: 28px; z-index: 3; pointer-events: none;
+  font-family: "Space Grotesk", sans-serif; font-size: 12px; font-weight: 500;
+  letter-spacing: 0.3em; text-transform: uppercase; color: var(--faint);
+  opacity: 0; transition: opacity 1.1s ease;
+}
+#planet-label.show { opacity: 1; }
+@media (max-width: 760px) { #planet-label { top: 18px; right: 20px; } }
+
+/* WebGL 캔버스 — 전체 화면 고정 배경 (준비되면 부드럽게 등장) */
 #space {
   position: fixed;
   inset: 0;
@@ -37,7 +57,11 @@ body {
   height: 100vh;
   z-index: 0;
   display: block;
+  opacity: 0;
+  transition: opacity 1.2s ease;
 }
+body.ready #space { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { #space { transition: none; } }
 
 /* WebGL 미지원 시 폴백 그라디언트 */
 .no-webgl #space { display: none; }
@@ -64,21 +88,17 @@ body.no-webgl {
 
 a { color: inherit; text-decoration: none; }
 
-/* ---------- 로더 ---------- */
-#loader {
-  position: fixed; inset: 0; z-index: 50;
-  display: grid; place-items: center;
-  background: #01020a;
-  transition: opacity 0.9s ease, visibility 0.9s ease;
+/* 키보드 포커스 링 (마우스 클릭 시엔 숨김) */
+a:focus-visible, .btn:focus-visible, .chip:focus-visible, .brand:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
-body.ready #loader { opacity: 0; visibility: hidden; }
-.orbit {
-  width: 46px; height: 46px; border-radius: 50%;
-  border: 2px solid rgba(150,170,255,0.15);
-  border-top-color: var(--accent);
-  animation: spin 0.9s linear infinite;
+
+/* 스크린리더·검색엔진용 숨김 제목 */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- 네비게이션 ---------- */
 .nav {
@@ -109,23 +129,24 @@ body.ready #loader { opacity: 0; visibility: hidden; }
   display: flex; flex-direction: column; justify-content: center;
   padding-top: 128px; padding-bottom: 96px;
 }
-.hero h1 {
+#headline {
   font-family: "Pretendard Variable", "Pretendard", "Space Grotesk", sans-serif;
   font-weight: 700;
   font-size: clamp(31px, 4.7vw, 64px);
   line-height: 1.3; letter-spacing: -0.015em;
-  margin-bottom: 4px; min-height: 3.9em;
-  opacity: 0; transition: opacity 0.6s ease;
+  margin: 0 0 4px; min-height: 3.9em;
+  opacity: 0; transform: translateY(14px); filter: blur(10px);
+  transition: opacity 0.9s ease, transform 0.9s cubic-bezier(.2,.7,.2,1), filter 0.9s ease;
 }
-.hero h1.show { opacity: 1; }
-.hero h1 .who {
+#headline.show { opacity: 1; transform: none; filter: blur(0); }
+#headline .who {
   display: block; margin-top: 26px;
   font-family: "Space Grotesk", sans-serif; font-weight: 500; font-style: normal;
   font-size: clamp(12px, 1.1vw, 14px); letter-spacing: 0.2em; text-transform: uppercase;
   color: var(--faint);
 }
-.hero h1 .who::before { content: "— "; }
-.hero h1 .glow {
+#headline .who::before { content: "— "; }
+#headline .glow {
   background: linear-gradient(180deg, #ffffff, #cfe6ff 52%, #86b6e6);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 0 36px rgba(120, 180, 255, 0.30));
@@ -186,6 +207,6 @@ body.ready #loader { opacity: 0; visibility: hidden; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero h1, .cta, .channels { animation: none; opacity: 1; transform: none; transition: none; }
+  #headline, .cta, .channels { animation: none; opacity: 1; transform: none; filter: none; transition: none; }
   html { scroll-behavior: auto; }
 }
