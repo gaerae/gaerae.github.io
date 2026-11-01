@@ -4,12 +4,10 @@
 :root {
   --ink: #e9f0f8;
   --dim: #9aabc0;
-  --faint: #61718a;
+  --faint: #7f8fa8;
   --accent: #7cc4ff;
   --accent-soft: #a9d6ff;
-  --accent-2: #cfe0ff;
   --line: rgba(130, 170, 220, 0.14);
-  --panel: rgba(9, 15, 28, 0.44);
   --panel-strong: rgba(7, 12, 24, 0.74);
   --maxw: 1120px;
 }
@@ -51,7 +49,8 @@ body.departing #warpflash { opacity: 1; }
 }
 /* 라벨: 기존의 조용한 카탈로그 텍스트 그대로 — 버튼 티를 내지 않음 */
 #planet-label {
-  appearance: none; border: 0; background: none; margin: 0; padding: 2px 0;
+  appearance: none; border: 0; background: none;
+  margin: -9px 0; padding: 11px 0;                /* 보이는 크기는 그대로, 누를 수 있는 영역만 확보 */
   font-family: "Space Grotesk", sans-serif; font-size: 12px; font-weight: 500;
   letter-spacing: 0.3em; text-transform: uppercase; color: var(--dim);
   cursor: pointer; pointer-events: auto; white-space: nowrap;
@@ -60,21 +59,22 @@ body.departing #warpflash { opacity: 1; }
 }
 #planet-label.show { opacity: 1; }
 #planet-label.dim { opacity: 0.78; }          /* 소개 후에도 읽을 수 있을 만큼 남김(발견 가능) */
-#planet-nav:hover #planet-label,
 #planet-label:focus-visible { opacity: 1; color: var(--accent-soft); }
 /* ▾ 힌트는 상시 은은히 보여 '선택기'임을 알림 — 호버 때 또렷 */
 #planet-label::after {
   content: "▾"; margin-left: 8px; font-size: 9px; opacity: 0.45;
   transition: opacity 0.3s ease, transform 0.3s ease; vertical-align: middle; display: inline-block;
 }
-#planet-nav:hover #planet-label::after,
-#planet-label[aria-expanded="true"]::after { opacity: 0.85; }
-#planet-label[aria-expanded="true"]::after { transform: rotate(180deg); display: inline-block; }
+#planet-label[aria-expanded="true"]::after { opacity: 0.85; transform: rotate(180deg); }
+@media (hover: hover) {
+  #planet-nav:hover #planet-label { opacity: 1; color: var(--accent-soft); }
+  #planet-nav:hover #planet-label::after { opacity: 0.85; }
+}
 
 /* 메뉴: 조용한 글래스 리스트 (전체 톤을 깨지 않게) */
 #planet-menu {
   list-style: none; margin: 10px 0 0; padding: 6px;
-  min-width: 150px; max-height: 60vh; overflow-y: auto;
+  min-width: 150px; max-height: 60vh; overflow-y: auto; overscroll-behavior: contain;
   background: var(--panel-strong); backdrop-filter: blur(16px);
   border: 1px solid var(--line); border-radius: 12px;
   box-shadow: 0 18px 50px rgba(2, 6, 18, 0.5);
@@ -82,15 +82,19 @@ body.departing #warpflash { opacity: 1; }
 }
 #planet-menu[hidden] { display: none; }
 #planet-menu.open { opacity: 1; transform: none; }
-#planet-menu li {
+#planet-menu a {
+  display: block; padding: 8px 12px; border-radius: 8px; text-align: right;
   font-family: "Space Grotesk", sans-serif; font-size: 12px; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--dim);
-  padding: 8px 12px; border-radius: 8px; cursor: pointer; text-align: right;
   transition: background 0.18s ease, color 0.18s ease;
 }
-#planet-menu li:hover { color: var(--ink); background: rgba(124, 196, 255, 0.10); }
-#planet-menu li[aria-selected="true"] { color: var(--accent); }
-#planet-menu li[aria-selected="true"]::before { content: "◦ "; opacity: 0.8; }
+#planet-menu a:focus-visible { outline-offset: -2px; }
+#planet-menu a:active { background: rgba(124, 196, 255, 0.16); }
+#planet-menu a[aria-current] { color: var(--accent); }
+#planet-menu a[aria-current]::before { content: "◦ "; opacity: 0.8; }
+@media (hover: hover) {
+  #planet-menu a:hover { color: var(--ink); background: rgba(124, 196, 255, 0.10); }
+}
 @media (max-width: 760px) { #planet-nav { top: 16px; right: 18px; } }
 
 /* WebGL 캔버스 — 전체 화면 고정 배경 (준비되면 부드럽게 등장) */
@@ -109,7 +113,6 @@ body.ready #space { opacity: 1; }
 
 /* WebGL 미지원 시 폴백 그라디언트 */
 .no-webgl #space { display: none; }
-.no-webgl body,
 body.no-webgl {
   background:
     radial-gradient(1200px 600px at 20% -10%, rgba(90, 70, 200, 0.35), transparent 60%),
@@ -133,7 +136,7 @@ body.no-webgl {
 a { color: inherit; text-decoration: none; }
 
 /* 키보드 포커스 링 (마우스 클릭 시엔 숨김) */
-a:focus-visible, .btn:focus-visible, .chip:focus-visible, .brand:focus-visible {
+a:focus-visible, button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
@@ -149,12 +152,6 @@ a:focus-visible, .btn:focus-visible, .chip:focus-visible, .brand:focus-visible {
   position: fixed; top: 0; left: 0; right: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between;
   padding: 20px 28px;
-  transition: background 0.4s ease, backdrop-filter 0.4s ease;
-}
-.nav.scrolled {
-  background: rgba(5, 7, 18, 0.6);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--line);
 }
 .brand {
   display: flex; align-items: center; gap: 10px;
@@ -176,7 +173,7 @@ a:focus-visible, .btn:focus-visible, .chip:focus-visible, .brand:focus-visible {
 #headline {
   font-family: "Pretendard Variable", "Pretendard", "Space Grotesk", sans-serif;
   font-weight: 700;
-  font-size: clamp(31px, 4.7vw, 64px);
+  font-size: clamp(27px, 4.2vw, 60px);   /* 긴 문구도 2줄 · 행성과 겹치지 않는 크기 */
   line-height: 1.3; letter-spacing: -0.015em;
   margin: 0 0 4px; min-height: 3.9em;
   opacity: 0; transform: translateY(12px); filter: blur(6px);
@@ -206,24 +203,31 @@ a:focus-visible, .btn:focus-visible, .chip:focus-visible, .brand:focus-visible {
   font-size: 14.5px; font-weight: 500; letter-spacing: 0.01em; color: var(--ink);
   border: 1px solid rgba(150, 175, 220, 0.22);
   background: rgba(255, 255, 255, 0.045); backdrop-filter: blur(10px);
-  /* --mx/--my: JS가 커서를 향해 설정하는 자석 오프셋 */
-  transform: translate3d(var(--mx, 0px), var(--my, 0px), 0);
+  /* --mx/--my: JS가 커서를 향해 설정하는 자석 오프셋 · --press: 눌림 */
+  transform: translate3d(var(--mx, 0px), var(--my, 0px), 0) scale(var(--press, 1));
   transition: transform 0.26s cubic-bezier(.2,.7,.2,1), border-color 0.28s, box-shadow 0.28s, background 0.28s;
   will-change: transform;
 }
 .btn::after { content: "↗"; font-size: 13px; opacity: 0.5; transition: transform 0.28s, opacity 0.28s; }
-.btn:hover {
-  border-color: rgba(150, 185, 240, 0.55);
-  background: rgba(255, 255, 255, 0.075); box-shadow: 0 12px 38px rgba(40, 90, 170, 0.30);
-}
-.btn:hover::after { transform: translate(2px, -2px); opacity: 0.9; }
+.btn:active { --press: 0.97; }
 .btn.primary {
   background: linear-gradient(135deg, #8fccff, #5a8ff0);
   color: #05101f; border-color: transparent; font-weight: 600;
   box-shadow: 0 8px 26px rgba(70, 130, 230, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 .btn.primary::after { opacity: 0.65; }
-.btn.primary:hover { box-shadow: 0 14px 46px rgba(90, 160, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.55); }
+@media (hover: hover) {
+  .btn:hover {
+    border-color: rgba(150, 185, 240, 0.55);
+    background: rgba(255, 255, 255, 0.075); box-shadow: 0 12px 38px rgba(40, 90, 170, 0.30);
+  }
+  .btn:hover::after { transform: translate(2px, -2px); opacity: 0.9; }
+  .btn.primary:hover {
+    border-color: transparent;
+    background: linear-gradient(135deg, #8fccff, #5a8ff0);
+    box-shadow: 0 14px 46px rgba(90, 160, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  }
+}
 
 @keyframes rise { to { opacity: 1; transform: translateY(0); } }
 
@@ -241,10 +245,14 @@ a:focus-visible, .btn:focus-visible, .chip:focus-visible, .brand:focus-visible {
 .chip {
   font-size: 12.5px; padding: 7px 14px; border-radius: 100px;
   border: 1px solid var(--line); color: var(--dim);
-  background: rgba(255,255,255,0.02); transition: all 0.25s;
+  background: rgba(255,255,255,0.02);
+  transition: color 0.25s, border-color 0.25s, background 0.25s, transform 0.25s;
 }
-.chip:hover { color: var(--ink); border-color: var(--accent);
-  background: rgba(124,196,255,0.14); transform: translateY(-1px); }
+.chip:active { transform: scale(0.97); }
+@media (hover: hover) {
+  .chip:hover { color: var(--ink); border-color: var(--accent);
+    background: rgba(124,196,255,0.14); transform: translateY(-1px); }
+}
 
 /* ---------- 미니 푸터 ---------- */
 .mini-foot {
@@ -252,15 +260,22 @@ a:focus-visible, .btn:focus-visible, .chip:focus-visible, .brand:focus-visible {
   color: var(--faint); font-size: 12px; letter-spacing: 0.04em;
   pointer-events: none;
 }
-.mini-foot .credit { opacity: 0.62; }
+.mini-foot .credit { opacity: 0.8; }
 .mini-foot .credit a { pointer-events: auto; text-decoration: underline; text-underline-offset: 2px; }
 .mini-foot .credit a:hover { color: var(--accent-soft); }
-@media (max-width: 760px) { .mini-foot { font-size: 10.5px; } .mini-foot .credit { opacity: 0.5; } }
+@media (max-width: 760px) { .mini-foot { font-size: 10.5px; } }
 
 /* ---------- 반응형 ---------- */
+/* 터치: 작은 조작부를 손가락 크기로 */
+@media (pointer: coarse) {
+  .chip { padding: 11px 16px; }
+  #planet-menu a { padding: 12px 14px; }
+}
+
 @media (max-width: 760px) {
   .hero { padding-top: 100px; }
   .channels { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .chip { color: var(--ink); background: rgba(8, 13, 26, 0.62); backdrop-filter: blur(10px); } /* 행성 위에서도 읽히게 */
   .mini-foot { left: 20px; bottom: 16px; }
 }
 
