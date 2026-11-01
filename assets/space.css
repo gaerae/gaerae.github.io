@@ -167,11 +167,14 @@ a:focus-visible, .btn:focus-visible, .chip:focus-visible, .brand:focus-visible {
   font-size: 14.5px; font-weight: 500; letter-spacing: 0.01em; color: var(--ink);
   border: 1px solid rgba(150, 175, 220, 0.22);
   background: rgba(255, 255, 255, 0.045); backdrop-filter: blur(10px);
-  transition: transform 0.28s cubic-bezier(.2,.7,.2,1), border-color 0.28s, box-shadow 0.28s, background 0.28s;
+  /* --mx/--my: JS가 커서를 향해 설정하는 자석 오프셋 */
+  transform: translate3d(var(--mx, 0px), var(--my, 0px), 0);
+  transition: transform 0.26s cubic-bezier(.2,.7,.2,1), border-color 0.28s, box-shadow 0.28s, background 0.28s;
+  will-change: transform;
 }
 .btn::after { content: "↗"; font-size: 13px; opacity: 0.5; transition: transform 0.28s, opacity 0.28s; }
 .btn:hover {
-  transform: translateY(-2px); border-color: rgba(150, 185, 240, 0.55);
+  border-color: rgba(150, 185, 240, 0.55);
   background: rgba(255, 255, 255, 0.075); box-shadow: 0 12px 38px rgba(40, 90, 170, 0.30);
 }
 .btn:hover::after { transform: translate(2px, -2px); opacity: 0.9; }

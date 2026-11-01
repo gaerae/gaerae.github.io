@@ -267,10 +267,15 @@ planetGroup.rotation.x = restX;
 // 화면 비율에 맞춰 배치: 데스크톱은 크게 잘려 웅장하게, 모바일은 우측에서 살짝 걸치게
 let planetBaseY = 255;
 function layoutPlanet() {
-  if (window.innerWidth < 760) {
+  const w = window.innerWidth;
+  if (w < 760) {
     // 모바일: 축소 + 우측으로 밀어 — 고리가 본문/칩을 덮지 않게
     planetGroup.position.set(560, -150, -1440);
     planetGroup.scale.setScalar(0.5);
+  } else if (w < 1180) {
+    // 중간 폭(노트북·태블릿 가로): 안쪽으로 당기고 살짝 축소 — 화면 밖으로 잘려나가 사라지지 않게
+    planetGroup.position.set(560, 225, -1500);
+    planetGroup.scale.setScalar(0.72);
   } else {
     planetGroup.position.set(880, 255, -1430);
     planetGroup.scale.setScalar(1);
@@ -281,6 +286,7 @@ layoutPlanet();
 scene.add(planetGroup);
 
 const sunDir = SKY.sunDir.clone();
+const sunAim = new THREE.Vector3(); // 커서 반응용 태양 방향(프레임마다 재계산)
 
 // ── 표면: 위도 기반 가스 띠 + 도메인 워프 난류 + 대형 폭풍 + 부드러운 라이팅 ──
 const planetUniforms = {
@@ -527,6 +533,23 @@ document.querySelectorAll('.cta .btn').forEach((b) => {
   });
 });
 
+// 자석 버튼: 커서를 향해 미세하게 끌려오며 살짝 떠오름 (마우스 사용·모션 허용 시만)
+if (!REDUCE && matchMedia('(pointer: fine)').matches) {
+  document.querySelectorAll('.cta .btn').forEach((b) => {
+    b.addEventListener('pointermove', (e) => {
+      const r = b.getBoundingClientRect();
+      const ox = e.clientX - (r.left + r.width / 2);
+      const oy = e.clientY - (r.top + r.height / 2);
+      b.style.setProperty('--mx', (ox * 0.22).toFixed(1) + 'px');
+      b.style.setProperty('--my', (oy * 0.22 - 3).toFixed(1) + 'px'); // -3: 커서 위에서 살짝 떠오름
+    });
+    b.addEventListener('pointerleave', () => {
+      b.style.setProperty('--mx', '0px');
+      b.style.setProperty('--my', '0px');
+    });
+  });
+}
+
 // 뒤로가기(bfcache) 복원 시 플래시·워프 상태 초기화 (밝은 화면 잔상 방지)
 window.addEventListener('pageshow', () => {
   departing = false;
@@ -562,12 +585,14 @@ function animate() {
   if (!REDUCE) {
     planet.rotation.y += dt * spin;                             // 자전(메시에 적용 → 고리/자세 그룹과 분리)
     const lim = hasRing ? 1.05 : 0.7;                           // 고리 행성은 더 눕혀 고리가 열려 보이게
-    if (!dragging) {                                            // 드래그 관성 + 기본 자세 복귀
+    if (!dragging) {                                            // 드래그 관성 + 커서를 향한 은은한 기울임
       planetGroup.rotation.y += velY;
       planetGroup.rotation.x = Math.max(-lim, Math.min(lim, planetGroup.rotation.x + velX));
       velY *= 0.94; velX *= 0.94;
-      planetGroup.rotation.y += (0 - planetGroup.rotation.y) * dt * 0.15; // 드래그 후 정면 복귀(고리 안정)
-      planetGroup.rotation.x += (restX - planetGroup.rotation.x) * dt * 0.25;
+      const aimY = mouse.x * 0.26;                              // 커서 쪽으로 살짝 바라봄(±~8°)
+      const aimX = restX - mouse.y * 0.12;                      // 커서 상하에 따라 미세 끄덕임
+      planetGroup.rotation.y += (aimY - planetGroup.rotation.y) * dt * 0.9;
+      planetGroup.rotation.x += (aimX - planetGroup.rotation.x) * dt * 0.9;
     }
     planetGroup.position.y = planetBaseY + Math.sin(et * 0.4) * 7; // 미세한 부유
     atmo.scale.setScalar(1.0 + Math.sin(et * 0.5) * 0.014);     // 숨쉬는 대기 글로우
@@ -630,6 +655,10 @@ function animate() {
     camera.rotation.x = mouse.y * 0.11;
     camera.position.x = mouse.x * 26;
     camera.position.y = -mouse.y * 20;
+    // 커서를 따라 태양 방향 미세 이동 → 명암 경계(터미네이터)가 흐르며 입체감↑
+    sunAim.set(sunDir.x + mouse.x * 0.22, sunDir.y - mouse.y * 0.14, sunDir.z).normalize();
+    planetUniforms.uSun.value.copy(sunAim);
+    atmo.material.uniforms.uLight.value.copy(sunAim);
   }
 
   composer.render();
