@@ -249,7 +249,6 @@ for (let i = 0; i < NCOMET; i++) resetComet(i, true);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const rnd = (a, b) => a + Math.random() * (b - a);
-const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 /* 행성: Solar System Scope (CC BY 4.0) / 위성·왜소행성: NASA·USGS (public domain).
    실제 편평도(obl)·자전축 기울기(천왕성 98°)·고리(토성 실측, 그 외 희미한 절차적)까지 반영.
@@ -279,12 +278,20 @@ const BODIES = [
   { nm:'Titan',   tex:'2k_titan.jpg',            spin:0.020, haze:[1,.60,.26], atmo:{col:[1,.66,.30],s:0.92} }, // 토성 위성 — 짙은 오렌지 스모그
   { nm:'Pluto',   tex:'2k_pluto.jpg',            spin:0.016, face:-1.45, atmo:{col:[.56,.70,.95],s:0.24} }, // 왜소행성 — 옅은 블루 헤이즈, 하트(톰보 지역)가 보이게 시작
 ];
-// ?p=<이름>으로 특정 천체 고정(선택 UI에서 사용), 없으면 랜덤
-const forcedName = (new URLSearchParams(location.search).get('p') || '').toLowerCase();
-const body = BODIES.find(b => b.nm.toLowerCase() === forcedName) || pick(BODIES);
+// ?p=<이름>으로 특정 천체 고정(선택 UI에서 사용), 없으면 셔플 백 순서(index.html 의 drawFromBag)
+const params = new URLSearchParams(location.search);
+const forcedName = (params.get('p') || '').toLowerCase();
+const forcedBody = BODIES.find(b => b.nm.toLowerCase() === forcedName);
+const body = window.drawFromBag('bodies', BODIES, b => b.nm, forcedBody);
+// 선택은 이번 로드에만 적용 — 주소에 남기면 새로고침해도 같은 천체만 나온다
+if (params.has('p')) {
+  params.delete('p');
+  const query = params.toString();
+  history.replaceState(null, '', location.pathname + (query ? `?${query}` : '') + location.hash);
+}
 
 const sizeVar = rnd(0.85, 1.12);      // 개체마다 크기도 조금씩 다르게
-const planetName = body.nm + '-' + (100 + Math.floor(Math.random() * 899)) + (body.ring ? 'r' : '');
+const planetName = body.nm + '-' + (100 + Math.floor(Math.random() * 900)) + (body.ring ? 'r' : '');
 
 const R = 420;
 const oblY = 1 - (body.obl || 0);     // 편평도: 자전축(Y) 방향으로 눌러 적도가 부풀게
@@ -590,8 +597,9 @@ if (body.atmo) {
 const moons = [];
 const moonRoll = Math.random();
 const moonCount = REDUCE ? 0 : (moonRoll < 0.45 ? 0 : moonRoll < 0.82 ? 1 : 2);
-// 위성도 실제 천체 텍스처로(행성과 동일한 실사 조명) — 작은 암석·얼음 천체에서 랜덤
-const MOON_TEX = ['2k_moon.jpg', '2k_mercury.jpg', '2k_callisto.jpg', '2k_ganymede.jpg', '2k_europa.jpg'];
+// 위성도 실제 천체 텍스처로(행성과 동일한 실사 조명) — 작은 암석·얼음 천체에서 랜덤, 행성·다른 위성과 겹치지 않게
+const moonTex = ['2k_moon.jpg', '2k_mercury.jpg', '2k_callisto.jpg', '2k_ganymede.jpg', '2k_europa.jpg']
+  .filter(t => t !== body.tex);
 for (let i = 0; i < moonCount; i++) {
   const mr = R * rnd(0.06, 0.13);
   const mMesh = new THREE.Mesh(
@@ -600,7 +608,7 @@ for (let i = 0; i < moonCount; i++) {
       transparent: true,
       uniforms: {
         uSun: planetUniforms.uSun,                 // 행성과 같은(커서 반응) 태양 방향 공유
-        uMap: { value: loadTex(pick(MOON_TEX)) }, uOpacity: fadeUniform(),
+        uMap: { value: loadTex(moonTex.splice(Math.floor(Math.random() * moonTex.length), 1)[0]) }, uOpacity: fadeUniform(),
       },
       vertexShader: SURFACE_VERT,
       fragmentShader: /* glsl */`
