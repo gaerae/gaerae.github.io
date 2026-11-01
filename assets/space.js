@@ -274,7 +274,7 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 /* 세계 유형 — 형태 자체가 다른 5종. 각 유형이 전용 표면 셰이더·대기·고리·이름을 반환 */
 /* 실제 천체 — 공개 라이선스 고해상 텍스처를 구에 입힘. 접속마다 랜덤.
-   행성: Solar System Scope (CC BY 4.0) / 위성 이오·유로파: NASA·USGS (public domain).
+   행성: Solar System Scope (CC BY 4.0) / 이오·유로파·타이탄·명왕성: NASA·USGS (public domain).
    실제 편평도(obl)·자전축 기울기(천왕성 98°)·고리(토성 실측, 그 외 희미한 절차적)까지 반영. */
 const TEX = 'assets/textures/';
 const BODIES = [
@@ -294,6 +294,8 @@ const BODIES = [
   { nm:'Luna',    tex:'2k_moon.jpg',             spin:0.018, atmo:null },
   { nm:'Io',      tex:'2k_io.jpg',               spin:0.022, atmo:null },                       // 목성 위성 — 화산·유황
   { nm:'Europa',  tex:'2k_europa.jpg',           spin:0.020, atmo:{col:[.72,.84,.96],s:0.16} }, // 목성 위성 — 얼음(균열선)
+  { nm:'Titan',   tex:'2k_titan.jpg',            spin:0.020, haze:[1,.60,.26], atmo:{col:[1,.66,.30],s:0.92} }, // 토성 위성 — 짙은 오렌지 스모그
+  { nm:'Pluto',   tex:'2k_pluto.jpg',            spin:0.016, atmo:{col:[.56,.70,.95],s:0.24} }, // 왜소행성 — 옅은 블루 헤이즈(하트)
 ];
 const body = pick(BODIES);
 const world = {
@@ -361,6 +363,8 @@ const planetUniforms = {
   uNight: { value: body.atmo ? 0.05 : 0.015 },                 // 밤면 환경광(대기 있으면 약간 밝게)
   uRim: { value: new THREE.Color(...(body.atmo ? body.atmo.col : [.5,.55,.7])) },
   uAtmoPow: { value: body.atmo ? 0.5 : 0.0 },                   // 가장자리 대기 산란 세기
+  uHaze: { value: new THREE.Color(...(body.haze || [0, 0, 0])) }, // 전역 대기 스모그(타이탄)
+  uHazeAmt: { value: body.haze ? 0.72 : 0.0 },
 };
 const planet = new THREE.Mesh(
   new THREE.SphereGeometry(R, 160, 160),
@@ -379,9 +383,11 @@ const planet = new THREE.Mesh(
     fragmentShader: /* glsl */`
       precision highp float;
       varying vec2 vT; varying vec3 vWN; varying vec3 vVD;
-      uniform sampler2D uMap; uniform vec3 uSun, uRim; uniform float uOpacity, uNight, uAtmoPow;
+      uniform sampler2D uMap; uniform vec3 uSun, uRim, uHaze; uniform float uOpacity, uNight, uAtmoPow, uHazeAmt;
       void main(){
         vec3 alb = texture2D(uMap, vT).rgb;
+        // 전역 대기 스모그(타이탄): 음영을 들어올려 대비를 낮추고 오렌지로 물들임 — 표면은 은은히 비침
+        alb = mix(alb, (0.42 + 0.58 * alb) * uHaze, uHazeAmt);
         vec3 N = normalize(vWN);
         float ndl = dot(N, normalize(uSun));
         float day = smoothstep(-0.12, 0.30, ndl);                // 부드러운 명암 경계
@@ -391,6 +397,7 @@ const planet = new THREE.Mesh(
         lit += alb * (1.0 - day) * uNight;                       // 밤면 미세 환경광
         float fres = pow(1.0 - vd, 3.0);
         lit += uRim * fres * day * uAtmoPow;                     // 햇빛 받는 가장자리 대기 산란
+        lit += uHaze * fres * day * uHazeAmt * 0.6;              // 스모그 가장자리 글로우
         gl_FragColor = vec4(lit, uOpacity);
       }`,
   })
