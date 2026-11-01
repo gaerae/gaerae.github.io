@@ -261,7 +261,8 @@ const BODIES = [
       ring:{ inner:1.50, outer:2.05, col:[.44,.50,.64], op:0.12, arcs:true } },   // 희미한 고리 + 아크
   { nm:'Mars',    tex:'2k_mars.jpg',             spin:0.030, atmo:{col:[1,.58,.40],s:0.22} },
   { nm:'Venus',   tex:'2k_venus_atmosphere.jpg', spin:0.024, atmo:{col:[1,.86,.55],s:0.65} },
-  { nm:'Earth',   tex:'2k_earth_daymap.jpg',     spin:0.035, atmo:{col:[.46,.70,1],s:0.95} },
+  { nm:'Earth',   tex:'2k_earth_daymap.jpg',     spin:0.035, atmo:{col:[.46,.70,1],s:0.95},
+      night:'2k_earth_nightmap.jpg', clouds:'2k_earth_clouds.jpg', spec:'2k_earth_specular.jpg' }, // 야간 도시광·구름·해양 반사
   { nm:'Mercury', tex:'2k_mercury.jpg',          spin:0.020, atmo:null },
   { nm:'Luna',    tex:'2k_moon.jpg',             spin:0.018, atmo:null },
   { nm:'Io',       tex:'2k_io.jpg',              spin:0.022, atmo:null },                       // 목성 위성 — 화산·유황
@@ -332,10 +333,17 @@ let planetFadeIn = false;      // 텍스처 로드 완료 후 페이드인
 const planetTex = texLoader.load(TEX + body.tex, () => { planetFadeIn = !REDUCE; });
 planetTex.colorSpace = THREE.SRGBColorSpace;
 planetTex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+// 지구 전용 보조 맵: 야간 도시광(발광) · 해양 반사 마스크 — 없는 천체는 더미(planetTex)+플래그 0으로 무시
+const hasNight = !!body.night, hasSpec = !!body.spec;
+let nightTex = planetTex, specTex = planetTex;
+if (hasNight) { nightTex = texLoader.load(TEX + body.night); nightTex.colorSpace = THREE.SRGBColorSpace; nightTex.anisotropy = planetTex.anisotropy; }
+if (hasSpec)  { specTex  = texLoader.load(TEX + body.spec);  specTex.anisotropy = planetTex.anisotropy; } // 선형 마스크(해양=밝음)
 const planetUniforms = {
   uTime: { value: 0 }, uSun: { value: sunDir.clone() }, uSeed: { value: seed },
   uOpacity: { value: REDUCE ? 1 : 0 },
   uMap: { value: planetTex },
+  uNightMap: { value: nightTex }, uSpecMap: { value: specTex },
+  uHasNight: { value: hasNight ? 1 : 0 }, uHasSpec: { value: hasSpec ? 1 : 0 },
   uNight: { value: body.atmo ? 0.05 : 0.015 },                 // 밤면 환경광(대기 있으면 약간 밝게)
   uRim: { value: new THREE.Color(...(body.atmo ? body.atmo.col : [.5,.55,.7])) },
   uAtmoPow: { value: body.atmo ? 0.5 : 0.0 },                   // 가장자리 대기 산란 세기
@@ -359,7 +367,8 @@ const planet = new THREE.Mesh(
     fragmentShader: /* glsl */`
       precision highp float;
       varying vec2 vT; varying vec3 vWN; varying vec3 vVD;
-      uniform sampler2D uMap; uniform vec3 uSun, uRim, uHaze; uniform float uOpacity, uNight, uAtmoPow, uHazeAmt;
+      uniform sampler2D uMap, uNightMap, uSpecMap; uniform vec3 uSun, uRim, uHaze;
+      uniform float uOpacity, uNight, uAtmoPow, uHazeAmt, uHasNight, uHasSpec;
       void main(){
         vec3 alb = texture2D(uMap, vT).rgb;
         // 전역 대기 스모그(타이탄): 음영을 들어올려 대비를 낮추고 오렌지로 물들임 — 표면은 은은히 비침
@@ -371,6 +380,19 @@ const planet = new THREE.Mesh(
         float limb = 0.74 + 0.26 * pow(vd, 0.5);                 // 가장자리 감광
         vec3 lit = alb * (0.06 + day * 0.98) * limb;             // 과노출 억제 → 표면 색·띠 보존
         lit += alb * (1.0 - day) * uNight;                       // 밤면 미세 환경광
+        // 지구: 밤면 도시 불빛(발광) — 밤쪽에서만, 터미네이터에서 자연 감쇠
+        if (uHasNight > 0.5) {
+          vec3 city = texture2D(uNightMap, vT).rgb;
+          float night = smoothstep(0.08, -0.14, ndl);
+          lit += city * night * vec3(1.15, 0.92, 0.58) * 1.15;
+        }
+        // 지구: 해양 반사 하이라이트(해양 마스크·낮면) — 태양 반짝임
+        if (uHasSpec > 0.5) {
+          float ocean = texture2D(uSpecMap, vT).r;
+          vec3 Hh = normalize(normalize(uSun) + normalize(vVD));
+          float sp = pow(max(dot(N, Hh), 0.0), 64.0);
+          lit += vec3(1.0, 0.97, 0.90) * sp * ocean * day * 1.15;
+        }
         float fres = pow(1.0 - vd, 3.0);
         lit += uRim * fres * day * uAtmoPow;                     // 햇빛 받는 가장자리 대기 산란
         lit += uHaze * fres * day * uHazeAmt * 0.6;              // 스모그 가장자리 글로우
@@ -380,6 +402,42 @@ const planet = new THREE.Mesh(
 );
 planet.scale.set(1, oblY, 1);        // 편평도(가스/얼음행성은 적도가 부풀어 보임)
 planetGroup.add(planet);
+
+// ── 구름층(지구): 지표보다 약간 빠르게 도는 반투명 구름 — 낮면만 밝게, 밤면은 어둑 ──
+let clouds = null;
+if (body.clouds) {
+  const cloudTex = texLoader.load(TEX + body.clouds);
+  cloudTex.colorSpace = THREE.SRGBColorSpace;
+  cloudTex.anisotropy = planetTex.anisotropy;
+  clouds = new THREE.Mesh(
+    new THREE.SphereGeometry(R * 1.015, 128, 128),
+    new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false,
+      uniforms: { uMap: { value: cloudTex }, uSun: { value: planetUniforms.uSun.value }, uOpacity: { value: REDUCE ? 1 : 0 } },
+      vertexShader: /* glsl */`
+        varying vec2 vT; varying vec3 vWN; varying vec3 vVD;
+        void main(){ vT = uv; vWN = normalize(mat3(modelMatrix) * normal);
+          vec4 wp = modelMatrix * vec4(position, 1.0); vVD = normalize(cameraPosition - wp.xyz);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: /* glsl */`
+        precision highp float; varying vec2 vT; varying vec3 vWN; varying vec3 vVD;
+        uniform sampler2D uMap; uniform vec3 uSun; uniform float uOpacity;
+        void main(){
+          vec3 c = texture2D(uMap, vT).rgb;
+          float a = max(c.r, max(c.g, c.b));                 // 흰 구름 밀도
+          float ndl = dot(normalize(vWN), normalize(uSun));
+          float day = smoothstep(-0.12, 0.30, ndl);
+          float vd = clamp(dot(normalize(vWN), normalize(vVD)), 0.0, 1.0);
+          float limb = 0.72 + 0.28 * pow(vd, 0.5);
+          vec3 lit = vec3(1.0) * (0.05 + day * 1.0) * limb;  // 낮면 밝은 흰구름, 밤면 어둑
+          gl_FragColor = vec4(lit, a * uOpacity * (0.20 + day * 0.80));
+        }`,
+    })
+  );
+  clouds.scale.set(1, oblY, 1);
+  clouds.renderOrder = 1;              // 표면 위, 대기 림 아래
+  planetGroup.add(clouds);
+}
 
 // ── 고리: 토성=실측 텍스처, 그 외 거대행성=희미한 절차적 고리 ──
 let ring = null;
@@ -747,6 +805,11 @@ function animate() {
     planetGroup.position.y = planetBaseY + Math.sin(et * 0.4) * 7; // 미세한 부유
     if (atmo) { const sc = 1.0 + Math.sin(et * 0.5) * 0.014; atmo.scale.set(sc, sc * oblY, sc); } // 숨쉬는 대기(편평도 유지)
     if (planetFadeIn && planetUniforms.uOpacity.value < 1) planetUniforms.uOpacity.value = Math.min(1, planetUniforms.uOpacity.value + dt * 1.8); // 행성 페이드인
+    if (clouds) {
+      clouds.rotation.y += dt * spin * 1.25;                    // 구름이 지표보다 약간 빠르게 흘러감
+      const cu = clouds.material.uniforms.uOpacity;
+      if (planetFadeIn && cu.value < 1) cu.value = Math.min(1, cu.value + dt * 1.5);
+    }
     if (ring) {
       ring.material.uniforms.uTime.value = tt;                  // 고리 궤도 운동
       ring.material.uniforms.uCenter.value.copy(planetGroup.position); // 행성 그림자용 중심
