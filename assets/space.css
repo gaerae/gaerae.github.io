@@ -213,6 +213,10 @@ a:focus-visible, .btn:focus-visible, .chip:focus-visible, .brand:focus-visible {
   color: var(--faint); font-size: 12px; letter-spacing: 0.04em;
   pointer-events: none;
 }
+.mini-foot .credit { opacity: 0.62; }
+.mini-foot .credit a { pointer-events: auto; text-decoration: underline; text-underline-offset: 2px; }
+.mini-foot .credit a:hover { color: var(--accent-soft); }
+@media (max-width: 760px) { .mini-foot { font-size: 10.5px; } .mini-foot .credit { opacity: 0.5; } }
 
 /* ---------- 반응형 ---------- */
 @media (max-width: 760px) {

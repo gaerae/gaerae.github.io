@@ -235,8 +235,9 @@ function resetComet(i, initial) {
 for (let i = 0; i < NCOMET; i++) resetComet(i, true);
 
 /* ============================================================
- *  3. 외계행성 — 셰이더로 직접 생성한 상상의 세계 (접속마다 고유)
- *     형태가 근본적으로 다른 5종: 가스 · 용암 · 얼음 · 바다 · 암석(달)
+ *  3. 행성 — 실제 천체의 고해상 텍스처(접속마다 랜덤)
+ *     목성·토성·화성·수성·달·지구·금성·해왕성·천왕성
+ *     텍스처: Solar System Scope (solarsystemscope.com), CC BY 4.0
  * ============================================================ */
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
@@ -272,201 +273,28 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 /* 세계 유형 — 형태 자체가 다른 5종. 각 유형이 전용 표면 셰이더·대기·고리·이름을 반환 */
-const WORLDS = {
-  // 가스행성 — 흐르는 가로 띠 + 대형 폭풍 + (일부) 고리
-  gas() {
-    const P = [
-      { nm:'Aureus',  deep:[.10,.06,.03], mid:[.60,.40,.17], hi:[.98,.86,.58], rim:[1,.80,.46], spot:[.82,.30,.18] },
-      { nm:'Veridis', deep:[.02,.09,.09], mid:[.10,.46,.42], hi:[.72,.96,.86], rim:[.40,.95,.85], spot:[.95,.82,.42] },
-      { nm:'Amethys', deep:[.09,.04,.14], mid:[.44,.20,.56], hi:[.92,.78,.99], rim:[.76,.54,1], spot:[.42,.72,1] },
-      { nm:'Caelum',  deep:[.02,.06,.14], mid:[.16,.40,.70], hi:[.84,.93,1], rim:[.48,.74,1], spot:[.98,.72,.46] },
-      { nm:'Ember',   deep:[.12,.03,.03], mid:[.60,.22,.14], hi:[.99,.74,.50], rim:[1,.54,.36], spot:[1,.90,.62] },
-    ];
-    const p = pick(P);
-    return {
-      name: p.nm, ring: Math.random() < 0.6, spin: rnd(0.035, 0.065),
-      atmo: { col: p.rim, strength: 0.95 }, ringCol: p.rim, ringCol2: p.mid,
-      uniforms: {
-        uDeep:{value:new THREE.Color(...p.deep)}, uMid:{value:new THREE.Color(...p.mid)},
-        uHi:{value:new THREE.Color(...p.hi)}, uSpot:{value:new THREE.Color(...p.spot)},
-        uBandFreq:{value:rnd(7,13)}, uTurb:{value:rnd(0.55,1.25)}, uSpotOn:{value:Math.random()<0.7?1:0},
-      },
-      frag: /* glsl */`
-        uniform vec3 uDeep,uMid,uHi,uSpot; uniform float uBandFreq,uTurb,uSpotOn;
-        void main(){
-          vec3 p=normalize(vObj); float t=uTime*0.025;
-          // 완만하게 굽이치는 가로 띠 (난류 대신 그래픽한 흐름)
-          float flow=fbm(p*1.3+vec3(t,0.0,t*0.6));
-          float lat=p.y+(flow-0.5)*uTurb*0.35;
-          float b=0.5+0.5*sin(lat*uBandFreq+(flow-0.5)*0.8);
-          // 포스터화 — 연속 그라데이션을 6단의 평면 색면으로
-          float band=floor(b*6.0)/6.0+0.05*fbm(p*2.2+vec3(0.0,t,0.0));
-          band=clamp(band,0.0,1.0);
-          vec3 col=mix(uDeep,uMid,smoothstep(0.14,0.54,band));
-          col=mix(col,uHi,smoothstep(0.62,0.92,band));
-          // 그래픽 폭풍의 눈 — 깔끔한 타원 + 밝은 외곽 링
-          if(uSpotOn>0.5){ vec2 sc=vec2(0.7+0.15*sin(uSeed),-0.28);
-            vec2 pc=vec2(atan(p.z,p.x),p.y); float r=length((pc-sc)*vec2(0.42,1.5));
-            float eye=smoothstep(0.30,0.23,r);
-            float ringS=smoothstep(0.42,0.36,r)-smoothstep(0.33,0.27,r);
-            float sw=fbm(p*2.2+r*3.0);
-            col=mix(col,uSpot*(0.78+0.34*sw),eye);
-            col+=uHi*ringS*0.38; }
-          vec3 N=normalize(vWN); float ndl=dot(N,normalize(uSun));
-          float day=smoothstep(-0.22,0.38,ndl);
-          float limb=pow(clamp(dot(N,normalize(vVD)),0.,1.),0.55);
-          vec3 lit=col*(0.14+day*0.90)*(0.60+0.40*limb); lit+=col*(1.0-day)*0.05;
-          gl_FragColor=vec4(lit,uOpacity);
-        }`,
-    };
-  },
-  // 용암행성 — 갈라진 현무암 지각 + 자체발광 마그마 (밤에도 빛남)
-  lava() {
-    const warm = pick([[1,.78,.25],[1,.62,.15],[1,.84,.40]]);
-    return {
-      name: 'Ignis', ring: Math.random() < 0.1, spin: rnd(0.03, 0.05),
-      atmo: { col: [1,.42,.18], strength: 0.8 }, ringCol: [1,.5,.25], ringCol2: [.5,.15,.08],
-      uniforms: {
-        uCrust:{value:new THREE.Color(.12,.05,.04)}, uMagma1:{value:new THREE.Color(.95,.17,.03)},
-        uMagma2:{value:new THREE.Color(...warm)},
-      },
-      frag: /* glsl */`
-        uniform vec3 uCrust,uMagma1,uMagma2;
-        void main(){
-          vec3 p=normalize(vObj); vec3 sp=p*2.0+vec3(uSeed);
-          vec2 c=cell(sp*1.5); float edge=c.y-c.x;
-          float crack=smoothstep(0.11,0.02,edge);              // 깔끔한 용암 균열선
-          float core=smoothstep(0.05,0.0,edge);                // 백열 중심
-          float pulse=0.82+0.18*sin(uTime*0.6+c.x*18.0);       // 느리게 맥동
-          vec3 crust=mix(uCrust*0.55,uCrust,floor(fbm(sp*2.2)*3.0)/3.0); // 평면 지각 색면
-          vec3 glow=mix(uMagma1,uMagma2,core)*pulse;           // 가장자리 암적 → 중심 백열
-          vec3 N=normalize(vWN); float ndl=dot(N,normalize(uSun));
-          float day=smoothstep(-0.2,0.5,ndl);
-          float limb=pow(clamp(dot(N,normalize(vVD)),0.,1.),0.6);
-          vec3 lit=crust*(0.10+day*0.55)*(0.6+0.4*limb);
-          lit=mix(lit,glow,crack);                             // 균열은 자체발광 → 밤에도 빛남
-          lit+=uMagma2*core*0.6;                               // 백열 코어 번짐
-          gl_FragColor=vec4(lit,uOpacity);
-        }`,
-    };
-  },
-  // 얼음행성 — 갈라진 얼음판 + 극관 + 반짝임
-  ice() {
-    const tint = pick([[.24,.46,.76],[.30,.54,.82],[.20,.52,.74],[.34,.50,.84],[.18,.58,.78],[.28,.60,.88]]);
-    return {
-      name: 'Glacio', ring: Math.random() < 0.3, spin: rnd(0.02, 0.045),
-      atmo: { col: [.42,.72,1], strength: 0.72 }, ringCol: [.80,.92,1], ringCol2: [.42,.64,.88],
-      uniforms: {
-        uIceLo:{value:new THREE.Color(...tint)}, uIceHi:{value:new THREE.Color(.66,.86,1)},
-        uCrack:{value:new THREE.Color(.012,.05,.20)},     // 심해 네이비 — 크레바스 깊이를 더 짙게
-      },
-      frag: /* glsl */`
-        uniform vec3 uIceLo,uIceHi,uCrack;
-        void main(){
-          vec3 p=normalize(vObj);
-          // 도메인 워프 → 규칙적 격자가 아닌 불규칙한 얼음판
-          vec3 wq=vec3(fbm(p*1.8+uSeed),fbm(p*1.8+uSeed+5.3),fbm(p*1.8+uSeed+9.1));
-          vec3 q=p*2.0+(wq-0.5)*1.0+vec3(uSeed);
-          vec2 c=cell(q); float edge=c.y-c.x;
-          float lineae=smoothstep(0.09,0.015,edge);             // 굵고 또렷한 균열선(유로파)
-          vec2 c2=cell(q*2.3+3.0); float fine=smoothstep(0.05,0.01,c2.y-c2.x);
-          float field=floor(fbm(p*2.5+uSeed)*3.0)/3.0;          // 평면 얼음 색면(2~3단)
-          vec3 ice=mix(uIceLo,uIceHi,field);
-          vec3 col=mix(ice,uCrack,lineae*0.92);                 // 심해 네이비 균열
-          col=mix(col,uCrack*1.6,fine*0.4);                     // 미세 균열
-          col=mix(col,vec3(0.86,0.93,1.0),smoothstep(0.70,0.95,abs(p.y))); // 평면 극관
-          vec3 N=normalize(vWN); float ndl=dot(N,normalize(uSun));
-          float day=smoothstep(-0.16,0.44,ndl);
-          float vd=clamp(dot(N,normalize(vVD)),0.0,1.0);
-          float limb=pow(vd,0.5);
-          float fres=pow(1.0-vd,3.0);                           // 가장자리 프레넬
-          vec3 irid=0.5+0.5*cos(6.2831*(fres*1.2+vec3(0.0,0.33,0.66))+uSeed); // 영롱한 얇은 막 간섭색
-          vec3 H=normalize(normalize(uSun)+normalize(vVD));
-          float spec=pow(clamp(dot(N,H),0.0,1.0),70.0)*(0.5+0.5*(1.0-lineae)); // 매끈한 얼음 반사
-          vec3 lit=col*(0.14+day*0.82)*(0.62+0.38*limb);
-          lit+=vec3(0.80,0.92,1.0)*spec*day*0.7;                // 차가운 하이라이트
-          lit+=irid*fres*day*0.22;                              // 영롱한 가장자리 색
-          lit+=vec3(0.04,0.13,0.36)*(1.0-day)*0.16;             // 야간측 심해빛 자생광
-          gl_FragColor=vec4(lit,uOpacity);
-        }`,
-    };
-  },
-  // 바다행성 — 대륙 + 대양 + 햇빛 반짝임 + 흐르는 구름 + 극관
-  ocean() {
-    const alien = Math.random() < 0.35;
-    const sea = alien ? [.05,.34,.40] : [.06,.30,.50];
-    const seaDeep = alien ? [.01,.12,.16] : [.01,.09,.24];
-    return {
-      name: alien ? 'Thalassa' : 'Oceanus', ring: false, spin: rnd(0.03, 0.05),
-      atmo: { col: [.45,.68,1], strength: 1.0 },
-      uniforms: {
-        uSea:{value:new THREE.Color(...sea)}, uSeaDeep:{value:new THREE.Color(...seaDeep)},
-        uLand:{value:new THREE.Color(.16,.26,.10)}, uLand2:{value:new THREE.Color(.42,.36,.20)},
-      },
-      frag: /* glsl */`
-        uniform vec3 uSea,uSeaDeep,uLand,uLand2;
-        void main(){
-          vec3 p=normalize(vObj); vec3 sp=p*1.6+vec3(uSeed); float t=uTime*0.013;
-          float cont=fbm(sp*1.3+fbm(sp*2.0)*0.5);
-          float land=smoothstep(0.545,0.575,cont);              // 또렷한 해안선
-          float shelf=smoothstep(0.50,0.545,cont);              // 대륙붕(얕은 바다 띠)
-          vec3 sea=mix(uSeaDeep,uSea,shelf);                    // 평면 2톤 바다
-          float relief=floor(fbm(sp*3.0)*3.0)/3.0;              // 평면 육지 색면
-          vec3 soil=mix(uLand,uLand2,relief);
-          vec3 col=mix(sea,soil,land);
-          col=mix(col,vec3(0.92,0.96,1.0),smoothstep(0.73,0.93,abs(p.y))); // 극관
-          float cl=smoothstep(0.56,0.72,fbm(sp*2.0+vec3(t*2.0,0.0,t))); // 대담한 구름 덩어리
-          col=mix(col,vec3(1.0),cl*0.8);
-          vec3 N=normalize(vWN); float ndl=dot(N,normalize(uSun));
-          float day=smoothstep(-0.13,0.42,ndl);
-          float limb=pow(clamp(dot(N,normalize(vVD)),0.,1.),0.5);
-          vec3 H=normalize(normalize(uSun)+normalize(vVD));
-          float spec=pow(clamp(dot(N,H),0.0,1.0),90.0)*(1.0-land)*(1.0-cl);
-          vec3 lit=col*(0.13+day*0.88)*(0.62+0.38*limb)+vec3(1.0,0.96,0.85)*spec*day*1.1;
-          lit+=col*(1.0-day)*0.05;
-          gl_FragColor=vec4(lit,uOpacity);
-        }`,
-    };
-  },
-  // 암석/달 — 크레이터 뒤덮인 대기 없는 황량한 세계 (또렷한 명암 경계)
-  barren() {
-    const hue = pick([[.14,.13,.12,.52,.50,.47],[.16,.10,.08,.52,.34,.26],[.13,.12,.10,.48,.46,.40]]);
-    return {
-      name: hue[3] > hue[4] + 0.1 ? 'Ferrum' : 'Petra', ring: false, spin: rnd(0.02, 0.04),
-      atmo: null,
-      uniforms: {
-        uRockLo:{value:new THREE.Color(hue[0],hue[1],hue[2])},
-        uRockHi:{value:new THREE.Color(hue[3],hue[4],hue[5])},
-      },
-      frag: /* glsl */`
-        uniform vec3 uRockLo,uRockHi;
-        void main(){
-          vec3 p=normalize(vObj); vec3 sp=p*2.0+vec3(uSeed);
-          float field=floor((fbm(sp*2.0)*0.5+0.5)*3.0)/3.0;    // 평면 암석 색면
-          vec3 col=mix(uRockLo,uRockHi,field);
-          // 거대 충돌 분지 — 동심원 링(그래픽 hero 지형)
-          vec3 bc=normalize(vec3(sin(uSeed*1.3),0.25,cos(uSeed*1.3)));
-          float bd=distance(p,bc);
-          float basin=smoothstep(0.52,0.46,bd);
-          float rings=(sin(bd*34.0)*0.5+0.5)*smoothstep(0.52,0.18,bd)*smoothstep(0.0,0.06,bd);
-          col=mix(col,uRockLo*0.72,basin*0.5);
-          col+=uRockHi*rings*0.14;
-          // 몇 개의 또렷한 크레이터(그림자 + 밝은 테두리)
-          vec2 cc=cell(sp*3.0);
-          float crat=(1.0-smoothstep(0.0,0.12,cc.x))*0.5;
-          float rim=smoothstep(0.10,0.15,cc.x)-smoothstep(0.15,0.22,cc.x);
-          col*=1.0-crat*0.4; col+=rim*0.16;
-          vec3 N=normalize(vWN); float ndl=dot(N,normalize(uSun));
-          float day=smoothstep(-0.02,0.12,ndl);                // 대기 없음 → 또렷한 명암 경계
-          float limb=pow(clamp(dot(N,normalize(vVD)),0.,1.),0.8);
-          vec3 lit=col*(0.03+day*1.0)*(0.82+0.18*limb); lit+=col*(1.0-day)*0.015;
-          gl_FragColor=vec4(lit,uOpacity);
-        }`,
-    };
-  },
+/* 실제 천체 — 공개 라이선스(CC BY 4.0, Solar System Scope) 고해상 텍스처를 구에 입힘.
+   접속마다 랜덤으로 다른 실제 행성/위성이 등장한다. */
+const TEX = 'assets/textures/';
+const BODIES = [
+  { nm:'Jupiter', tex:'2k_jupiter.jpg',          spin:0.045, atmo:{col:[.96,.82,.64],s:0.75} },
+  { nm:'Saturn',  tex:'2k_saturn.jpg',           spin:0.042, atmo:{col:[.98,.90,.70],s:0.50},
+      ring:{ tex:'2k_saturn_ring_alpha.png', inner:1.28, outer:2.35 } },
+  { nm:'Mars',    tex:'2k_mars.jpg',             spin:0.030, atmo:{col:[1,.58,.40],s:0.22} },
+  { nm:'Mercury', tex:'2k_mercury.jpg',          spin:0.020, atmo:null },
+  { nm:'Luna',    tex:'2k_moon.jpg',             spin:0.018, atmo:null },
+  { nm:'Earth',   tex:'2k_earth_daymap.jpg',     spin:0.035, atmo:{col:[.46,.70,1],s:0.95} },
+  { nm:'Venus',   tex:'2k_venus_atmosphere.jpg', spin:0.024, atmo:{col:[1,.86,.55],s:0.65} },
+  { nm:'Neptune', tex:'2k_neptune.jpg',          spin:0.040, atmo:{col:[.42,.58,1],s:0.72} },
+  { nm:'Uranus',  tex:'2k_uranus.jpg',           spin:0.038, atmo:{col:[.62,.92,.96],s:0.60} },
+];
+const body = pick(BODIES);
+const world = {
+  name: body.nm,
+  spin: body.spin,
+  ring: !!body.ring,
+  atmo: body.atmo ? { col: body.atmo.col, strength: body.atmo.s } : null,
 };
-const worldKey = pick(Object.keys(WORLDS));
-const world = WORLDS[worldKey]();
 
 // 개체 고유 파라미터
 const seed = Math.random() * 10;
@@ -505,82 +333,80 @@ scene.add(planetGroup);
 const sunDir = SKY.sunDir.clone();
 const sunAim = new THREE.Vector3(); // 커서 반응용 태양 방향(프레임마다 재계산)
 
-// ── 표면: 선택된 세계 유형의 전용 셰이더로 구성 ──
+// ── 표면: 실제 천체 텍스처(알베도)를 시네마틱 명암으로 조명 ──
+const texLoader = new THREE.TextureLoader();
+let planetFadeIn = false;      // 텍스처 로드 완료 후 페이드인
+const planetTex = texLoader.load(TEX + body.tex, () => { planetFadeIn = !REDUCE; });
+planetTex.colorSpace = THREE.SRGBColorSpace;
+planetTex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 const planetUniforms = {
   uTime: { value: 0 }, uSun: { value: sunDir.clone() }, uSeed: { value: seed },
   uOpacity: { value: REDUCE ? 1 : 0 },
-  ...world.uniforms,
+  uMap: { value: planetTex },
+  uNight: { value: body.atmo ? 0.05 : 0.015 },                 // 밤면 환경광(대기 있으면 약간 밝게)
+  uRim: { value: new THREE.Color(...(body.atmo ? body.atmo.col : [.5,.55,.7])) },
+  uAtmoPow: { value: body.atmo ? 0.5 : 0.0 },                   // 가장자리 대기 산란 세기
 };
 const planet = new THREE.Mesh(
   new THREE.SphereGeometry(R, 160, 160),
   new THREE.ShaderMaterial({
     transparent: true,
     uniforms: planetUniforms,
-    vertexShader: VSHADER,
+    vertexShader: /* glsl */`
+      varying vec2 vT; varying vec3 vWN; varying vec3 vVD;
+      void main(){
+        vT = uv;
+        vWN = normalize(mat3(modelMatrix) * normal);
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vVD = normalize(cameraPosition - wp.xyz);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
     fragmentShader: /* glsl */`
       precision highp float;
-      varying vec3 vObj; varying vec3 vWN; varying vec3 vVD;
-      uniform float uTime, uSeed, uOpacity; uniform vec3 uSun;
-      ${NOISE}
-      ${world.frag}
-    `,
+      varying vec2 vT; varying vec3 vWN; varying vec3 vVD;
+      uniform sampler2D uMap; uniform vec3 uSun, uRim; uniform float uOpacity, uNight, uAtmoPow;
+      void main(){
+        vec3 alb = texture2D(uMap, vT).rgb;
+        vec3 N = normalize(vWN);
+        float ndl = dot(N, normalize(uSun));
+        float day = smoothstep(-0.12, 0.30, ndl);                // 부드러운 명암 경계
+        float vd = clamp(dot(N, normalize(vVD)), 0.0, 1.0);
+        float limb = 0.74 + 0.26 * pow(vd, 0.5);                 // 가장자리 감광
+        vec3 lit = alb * (0.06 + day * 0.98) * limb;             // 과노출 억제 → 표면 색·띠 보존
+        lit += alb * (1.0 - day) * uNight;                       // 밤면 미세 환경광
+        float fres = pow(1.0 - vd, 3.0);
+        lit += uRim * fres * day * uAtmoPow;                     // 햇빛 받는 가장자리 대기 산란
+        gl_FragColor = vec4(lit, uOpacity);
+      }`,
   })
 );
 planetGroup.add(planet);
-let planetFadeIn = !REDUCE;   // 텍스처 대기 없음 → 즉시 등장(페이드)
 
-// ── 고리: 개체마다 폭·틈(카시니)·밀도·밝기·띠 간격이 다른 절차적 고리 ──
+// ── 고리: 실제 토성 고리 텍스처(반지름 방향 밴드 + 카시니 간극 + 알파) ──
 let ring = null;
 if (hasRing) {
-  const inner = R * rnd(1.24, 1.5);
-  const outer = inner + R * rnd(0.55, 1.45);           // 폭이 매번 다름(좁은 링 ↔ 넓은 원반)
-  const rg = new THREE.RingGeometry(inner, outer, 240, 1);
+  const inner = R * body.ring.inner, outer = R * body.ring.outer;
+  const rg = new THREE.RingGeometry(inner, outer, 220, 1);
   const rp = rg.attributes.position, ruv = rg.attributes.uv, tmp = new THREE.Vector3();
   for (let i = 0; i < rp.count; i++) {
     tmp.fromBufferAttribute(rp, i);
-    const ru = (tmp.length() - inner) / (outer - inner);
-    const ang = (Math.atan2(tmp.y, tmp.x) + Math.PI) / (Math.PI * 2); // 각도 → 궤도 운동에 사용
-    ruv.setXY(i, ru, ang);
+    ruv.setXY(i, (tmp.length() - inner) / (outer - inner), 0.5); // u = 반지름 위치 → 고리 띠 샘플
   }
-  // 1~3개의 틈을 임의 위치·폭으로 (매번 다른 간극 구조)
-  const gapN = Math.floor(rnd(1, 3.999));
-  const gapPos = [0.5, 0.5, 0.5], gapW = [0.02, 0.02, 0.02];
-  for (let i = 0; i < gapN; i++) { gapPos[i] = rnd(0.12, 0.88); gapW[i] = rnd(0.015, 0.05); }
+  const ringTex = texLoader.load(TEX + body.ring.tex);
+  ringTex.colorSpace = THREE.SRGBColorSpace;
   ring = new THREE.Mesh(rg, new THREE.ShaderMaterial({
     side: THREE.DoubleSide, transparent: true, depthWrite: false,
     uniforms: {
-      uOpacity: { value: REDUCE ? 1 : 0 }, uSeed: { value: seed }, uTime: { value: 0 },
-      uCol: { value: new THREE.Color(...world.ringCol) }, uDeep: { value: new THREE.Color(...world.ringCol2) },
-      uBandF: { value: rnd(70, 190) }, uDens: { value: rnd(0.65, 1.0) }, uBright: { value: rnd(0.8, 1.15) },
-      uSpin: { value: rnd(0.12, 0.26) * (Math.random() < 0.5 ? 1 : -1) },
-      uGapPos: { value: gapPos }, uGapW: { value: gapW }, uGapN: { value: gapN },
+      uOpacity: { value: REDUCE ? 1 : 0 }, uTime: { value: 0 },
+      uMap: { value: ringTex }, uSun: { value: planetUniforms.uSun.value },
     },
-    vertexShader: /* glsl */`varying vec2 vUv; varying vec2 vDir; void main(){ vUv = uv; vDir = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    vertexShader: /* glsl */`varying vec2 vUv; varying vec3 vWN; void main(){ vUv = uv; vWN = normalize(mat3(modelMatrix)*normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: /* glsl */`
-      precision highp float; varying vec2 vUv; varying vec2 vDir;
-      uniform float uOpacity, uSeed, uBandF, uDens, uBright, uTime, uSpin;
-      uniform vec3 uCol, uDeep; uniform float uGapPos[3]; uniform float uGapW[3]; uniform int uGapN;
-      float hash(float n){ return fract(sin(n) * 43758.5453); }
-      float bn(float x){ float i=floor(x),f=fract(x); f=f*f*(3.0-2.0*f); return mix(hash(i),hash(i+1.0),f); }
+      precision highp float; varying vec2 vUv; varying vec3 vWN;
+      uniform sampler2D uMap; uniform float uOpacity;
       void main(){
-        float u = vUv.x;                                   // 0 내측 … 1 외측
-        // 둘레 각도는 프래그먼트에서 재구성 — UV 이음새의 0/1 점프(방사형 글리치 스포크) 제거
-        float ang = atan(vDir.y, vDir.x);
-        float bands = 0.5 + 0.5 * sin(u * uBandF + uSeed);
-        float band = floor(bands * 4.0) / 4.0;             // 평면 띠 색면(포스터화)
-        float fine = bn(u * 38.0 + uSeed) * 0.5 + 0.5;
-        // 궤도 운동: 안쪽이 더 빠른 케플러 전단 — 농담 덩어리가 둘레를 따라 흐름
-        float spd = uSpin / (0.42 + u * 0.85);
-        float orbit = ang + uTime * spd;
-        float clump = 0.80 + 0.20 * sin(orbit * (4.0 + floor(uBandF * 0.05)));
-        float gap = 1.0;                                   // 여러 틈을 곱해 합성
-        for (int i = 0; i < 3; i++) {
-          if (i < uGapN) gap *= smoothstep(uGapW[i], uGapW[i] + 0.012, abs(u - uGapPos[i]));
-        }
-        float dens = clamp(band * 0.62 + 0.22, 0.0, 1.0) * gap * uDens * clump;
-        dens *= smoothstep(0.0, 0.05, u) * smoothstep(1.0, 0.90, u); // 안팎 페이드
-        vec3 col = mix(uDeep * 1.2, uCol, band) * uBright;
-        gl_FragColor = vec4(col, dens * 0.92 * uOpacity);
+        vec4 t = texture2D(uMap, vec2(vUv.x, 0.5));        // 실측 고리 밴드·간극·알파
+        gl_FragColor = vec4(t.rgb, t.a * uOpacity);
       }
     `,
   }));
