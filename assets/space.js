@@ -700,8 +700,12 @@ if (planetLabel) {
       });
       planetMenu.appendChild(li);
     });
+    let lastToggle = 0;
     planetLabel.addEventListener('click', (e) => {
       e.stopPropagation();
+      const now = Date.now();
+      if (now - lastToggle < 350) return;        // 중복 이벤트(터치+마우스 등)로 토글 2번 되는 것 방지
+      lastToggle = now;
       planetLabel.getAttribute('aria-expanded') === 'true' ? closeMenu() : openMenu();
     });
     document.addEventListener('click', (e) => {
