@@ -273,20 +273,27 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 /* 세계 유형 — 형태 자체가 다른 5종. 각 유형이 전용 표면 셰이더·대기·고리·이름을 반환 */
-/* 실제 천체 — 공개 라이선스(CC BY 4.0, Solar System Scope) 고해상 텍스처를 구에 입힘.
-   접속마다 랜덤으로 다른 실제 행성/위성이 등장한다. */
+/* 실제 천체 — 공개 라이선스 고해상 텍스처를 구에 입힘. 접속마다 랜덤.
+   행성: Solar System Scope (CC BY 4.0) / 위성 이오·유로파: NASA·USGS (public domain).
+   실제 편평도(obl)·자전축 기울기(천왕성 98°)·고리(토성 실측, 그 외 희미한 절차적)까지 반영. */
 const TEX = 'assets/textures/';
 const BODIES = [
-  { nm:'Jupiter', tex:'2k_jupiter.jpg',          spin:0.045, atmo:{col:[.96,.82,.64],s:0.75} },
-  { nm:'Saturn',  tex:'2k_saturn.jpg',           spin:0.042, atmo:{col:[.98,.90,.70],s:0.50},
-      ring:{ tex:'2k_saturn_ring_alpha.png', inner:1.28, outer:2.35 } },
+  // obl = 편평도(적도 팽창), ring = 실측(tex) 또는 희미한 절차적 고리, sideways = 천왕성의 누운 자전축
+  { nm:'Jupiter', tex:'2k_jupiter.jpg',          spin:0.045, obl:0.06,  atmo:{col:[.96,.82,.64],s:0.75},
+      ring:{ inner:1.40, outer:1.82, col:[.54,.44,.36], op:0.09 } },             // 희미한 먼지 고리
+  { nm:'Saturn',  tex:'2k_saturn.jpg',           spin:0.042, obl:0.09,  atmo:{col:[.98,.90,.70],s:0.50},
+      ring:{ tex:'2k_saturn_ring_alpha.png', inner:1.28, outer:2.35 } },         // 실측 고리(카시니 간극)
+  { nm:'Uranus',  tex:'2k_uranus.jpg',           spin:0.038, obl:0.02,  sideways:true, atmo:{col:[.62,.92,.96],s:0.60},
+      ring:{ inner:1.58, outer:2.00, col:[.60,.66,.70], op:0.30, ringlets:true } }, // 세로로 선 좁은 고리(98° 기울기)
+  { nm:'Neptune', tex:'2k_neptune.jpg',          spin:0.040, obl:0.017, atmo:{col:[.42,.58,1],s:0.72},
+      ring:{ inner:1.50, outer:2.05, col:[.44,.50,.64], op:0.12, arcs:true } },   // 희미한 고리 + 아크
   { nm:'Mars',    tex:'2k_mars.jpg',             spin:0.030, atmo:{col:[1,.58,.40],s:0.22} },
+  { nm:'Venus',   tex:'2k_venus_atmosphere.jpg', spin:0.024, atmo:{col:[1,.86,.55],s:0.65} },
+  { nm:'Earth',   tex:'2k_earth_daymap.jpg',     spin:0.035, atmo:{col:[.46,.70,1],s:0.95} },
   { nm:'Mercury', tex:'2k_mercury.jpg',          spin:0.020, atmo:null },
   { nm:'Luna',    tex:'2k_moon.jpg',             spin:0.018, atmo:null },
-  { nm:'Earth',   tex:'2k_earth_daymap.jpg',     spin:0.035, atmo:{col:[.46,.70,1],s:0.95} },
-  { nm:'Venus',   tex:'2k_venus_atmosphere.jpg', spin:0.024, atmo:{col:[1,.86,.55],s:0.65} },
-  { nm:'Neptune', tex:'2k_neptune.jpg',          spin:0.040, atmo:{col:[.42,.58,1],s:0.72} },
-  { nm:'Uranus',  tex:'2k_uranus.jpg',           spin:0.038, atmo:{col:[.62,.92,.96],s:0.60} },
+  { nm:'Io',      tex:'2k_io.jpg',               spin:0.022, atmo:null },                       // 목성 위성 — 화산·유황
+  { nm:'Europa',  tex:'2k_europa.jpg',           spin:0.020, atmo:{col:[.72,.84,.96],s:0.16} }, // 목성 위성 — 얼음(균열선)
 ];
 const body = pick(BODIES);
 const world = {
@@ -304,10 +311,18 @@ const sizeVar = rnd(0.85, 1.12);      // 개체마다 크기도 조금씩 다르
 const planetName = world.name + '-' + (100 + Math.floor(Math.random() * 899)) + (hasRing ? 'r' : '');
 
 const R = 420;
+const oblY = 1 - (body.obl || 0);     // 편평도: 자전축(Y) 방향으로 눌러 적도가 부풀게
 const planetGroup = new THREE.Group();
-// 고리 개체는 고리가 열려 보이도록 자세 고정, 그 외엔 랜덤 자전축
-const restX = hasRing ? -0.85 : 0;
-planetGroup.rotation.z = hasRing ? 0.30 : (0.24 + Math.random() * 0.28);
+// 자전축 기울기 / 고리 자세
+let restX, rotZ;
+if (body.sideways) {                  // 천왕성: 거의 옆으로 누운 자전축 → 고리가 세로로 선다
+  restX = -0.12; rotZ = 1.42;
+} else if (body.ring && body.ring.tex) { // 토성: 실측 고리가 활짝 열려 보이는 자세
+  restX = -0.85; rotZ = 0.30;
+} else {                              // 그 외: 은은한 자전축(희미한 고리는 적도면에 가늘게)
+  restX = 0; rotZ = 0.24 + Math.random() * 0.28;
+}
+planetGroup.rotation.z = rotZ;
 planetGroup.rotation.x = restX;
 // 화면 비율에 맞춰 배치: 데스크톱은 크게 잘려 웅장하게, 모바일은 우측에서 살짝 걸치게
 let planetBaseY = 255;
@@ -380,36 +395,61 @@ const planet = new THREE.Mesh(
       }`,
   })
 );
+planet.scale.set(1, oblY, 1);        // 편평도(가스/얼음행성은 적도가 부풀어 보임)
 planetGroup.add(planet);
 
-// ── 고리: 실제 토성 고리 텍스처(반지름 방향 밴드 + 카시니 간극 + 알파) ──
+// ── 고리: 토성=실측 텍스처, 그 외 거대행성=희미한 절차적 고리 ──
 let ring = null;
 if (hasRing) {
   const inner = R * body.ring.inner, outer = R * body.ring.outer;
-  const rg = new THREE.RingGeometry(inner, outer, 220, 1);
+  const rg = new THREE.RingGeometry(inner, outer, 240, 1);
   const rp = rg.attributes.position, ruv = rg.attributes.uv, tmp = new THREE.Vector3();
   for (let i = 0; i < rp.count; i++) {
     tmp.fromBufferAttribute(rp, i);
-    ruv.setXY(i, (tmp.length() - inner) / (outer - inner), 0.5); // u = 반지름 위치 → 고리 띠 샘플
+    ruv.setXY(i, (tmp.length() - inner) / (outer - inner), 0.5); // u = 반지름 위치
   }
-  const ringTex = texLoader.load(TEX + body.ring.tex);
-  ringTex.colorSpace = THREE.SRGBColorSpace;
-  ring = new THREE.Mesh(rg, new THREE.ShaderMaterial({
-    side: THREE.DoubleSide, transparent: true, depthWrite: false,
-    uniforms: {
-      uOpacity: { value: REDUCE ? 1 : 0 }, uTime: { value: 0 },
-      uMap: { value: ringTex }, uSun: { value: planetUniforms.uSun.value },
-    },
-    vertexShader: /* glsl */`varying vec2 vUv; varying vec3 vWN; void main(){ vUv = uv; vWN = normalize(mat3(modelMatrix)*normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: /* glsl */`
-      precision highp float; varying vec2 vUv; varying vec3 vWN;
-      uniform sampler2D uMap; uniform float uOpacity;
-      void main(){
-        vec4 t = texture2D(uMap, vec2(vUv.x, 0.5));        // 실측 고리 밴드·간극·알파
-        gl_FragColor = vec4(t.rgb, t.a * uOpacity);
-      }
-    `,
-  }));
+  let ringMat;
+  if (body.ring.tex) {
+    // 토성: 실측 고리 텍스처(반지름 방향 밴드 + 카시니 간극 + 알파)
+    const ringTex = texLoader.load(TEX + body.ring.tex);
+    ringTex.colorSpace = THREE.SRGBColorSpace;
+    ringMat = new THREE.ShaderMaterial({
+      side: THREE.DoubleSide, transparent: true, depthWrite: false,
+      uniforms: { uOpacity: { value: REDUCE ? 1 : 0 }, uTime: { value: 0 }, uMap: { value: ringTex } },
+      vertexShader: /* glsl */`varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: /* glsl */`
+        precision highp float; varying vec2 vUv; uniform sampler2D uMap; uniform float uOpacity;
+        void main(){ vec4 t = texture2D(uMap, vec2(vUv.x, 0.5)); gl_FragColor = vec4(t.rgb, t.a * uOpacity); }`,
+    });
+  } else {
+    // 목성·천왕성·해왕성: 희미한 절차적 고리(좁은 링렛/아크까지 실제에 가깝게)
+    ringMat = new THREE.ShaderMaterial({
+      side: THREE.DoubleSide, transparent: true, depthWrite: false,
+      uniforms: {
+        uOpacity: { value: REDUCE ? 1 : 0 }, uTime: { value: 0 },
+        uCol: { value: new THREE.Color(...body.ring.col) }, uOp: { value: body.ring.op },
+        uRinglets: { value: body.ring.ringlets ? 1 : 0 }, uArcs: { value: body.ring.arcs ? 1 : 0 },
+      },
+      vertexShader: /* glsl */`varying vec2 vUv; varying vec2 vDir; void main(){ vUv = uv; vDir = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: /* glsl */`
+        precision highp float; varying vec2 vUv; varying vec2 vDir;
+        uniform float uOpacity, uOp, uTime, uRinglets, uArcs; uniform vec3 uCol;
+        void main(){
+          float u = vUv.x;
+          float dens = smoothstep(0.0, 0.06, u) * smoothstep(1.0, 0.90, u);   // 안팎 페이드
+          if (uRinglets > 0.5) {                                             // 천왕성: 좁고 또렷한 링렛
+            float r = abs(fract(u * 6.0) - 0.5);
+            dens *= smoothstep(0.42, 0.30, r) * 0.9 + 0.1;
+          }
+          if (uArcs > 0.5) {                                                 // 해왕성: 둘레 일부만 밝은 아크
+            float ang = atan(vDir.y, vDir.x);
+            dens *= 0.35 + 0.65 * smoothstep(0.2, 0.95, sin(ang * 3.0 + uTime * 0.08) * 0.5 + 0.5);
+          }
+          gl_FragColor = vec4(uCol, dens * uOp * uOpacity);
+        }`,
+    });
+  }
+  ring = new THREE.Mesh(rg, ringMat);
   ring.rotation.x = Math.PI * 0.5;
   ring.renderOrder = 1;
   planetGroup.add(ring);
@@ -664,7 +704,7 @@ function animate() {
       planetGroup.rotation.x += (aimX - planetGroup.rotation.x) * dt * 0.9;
     }
     planetGroup.position.y = planetBaseY + Math.sin(et * 0.4) * 7; // 미세한 부유
-    if (atmo) atmo.scale.setScalar(1.0 + Math.sin(et * 0.5) * 0.014); // 숨쉬는 대기 글로우
+    if (atmo) { const sc = 1.0 + Math.sin(et * 0.5) * 0.014; atmo.scale.set(sc, sc * oblY, sc); } // 숨쉬는 대기(편평도 유지)
     if (planetFadeIn && planetUniforms.uOpacity.value < 1) planetUniforms.uOpacity.value = Math.min(1, planetUniforms.uOpacity.value + dt * 1.8); // 행성 페이드인
     if (ring) {
       ring.material.uniforms.uTime.value = tt;                  // 고리 궤도 운동
