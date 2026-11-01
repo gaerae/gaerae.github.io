@@ -53,21 +53,22 @@ body.departing #warpflash { opacity: 1; }
 #planet-label {
   appearance: none; border: 0; background: none; margin: 0; padding: 2px 0;
   font-family: "Space Grotesk", sans-serif; font-size: 12px; font-weight: 500;
-  letter-spacing: 0.3em; text-transform: uppercase; color: var(--faint);
+  letter-spacing: 0.3em; text-transform: uppercase; color: var(--dim);
   cursor: pointer; pointer-events: auto; white-space: nowrap;
+  text-shadow: 0 1px 10px rgba(3, 6, 16, 0.75);   /* 밝은 행성 위에서도 읽히게 */
   opacity: 0; transition: opacity 1.1s ease, color 0.3s ease;
 }
 #planet-label.show { opacity: 1; }
-#planet-label.dim { opacity: 0.4; }          /* 소개 후에도 희미하게 남아 발견 가능 */
-/* 상호작용 힌트는 호버 때만 — 평소엔 버튼처럼 보이지 않게 */
+#planet-label.dim { opacity: 0.78; }          /* 소개 후에도 읽을 수 있을 만큼 남김(발견 가능) */
 #planet-nav:hover #planet-label,
 #planet-label:focus-visible { opacity: 1; color: var(--accent-soft); }
+/* ▾ 힌트는 상시 은은히 보여 '선택기'임을 알림 — 호버 때 또렷 */
 #planet-label::after {
-  content: "▾"; margin-left: 8px; font-size: 9px; opacity: 0;
-  transition: opacity 0.3s ease; vertical-align: middle;
+  content: "▾"; margin-left: 8px; font-size: 9px; opacity: 0.45;
+  transition: opacity 0.3s ease, transform 0.3s ease; vertical-align: middle; display: inline-block;
 }
 #planet-nav:hover #planet-label::after,
-#planet-label[aria-expanded="true"]::after { opacity: 0.6; }
+#planet-label[aria-expanded="true"]::after { opacity: 0.85; }
 #planet-label[aria-expanded="true"]::after { transform: rotate(180deg); display: inline-block; }
 
 /* 메뉴: 조용한 글래스 리스트 (전체 톤을 깨지 않게) */
