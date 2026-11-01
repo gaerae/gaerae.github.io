@@ -31,6 +31,7 @@ body {
   overflow-x: hidden;
   word-break: keep-all;
   cursor: grab;            /* 행성을 굴릴 수 있다는 어포던스 */
+  touch-action: pan-y;     /* 터치: 세로는 스크롤, 가로는 행성 굴리기 */
 }
 body.grabbing { cursor: grabbing; user-select: none; -webkit-user-select: none; }
 
@@ -101,8 +102,6 @@ body.departing #warpflash { opacity: 1; }
 #space {
   position: fixed;
   inset: 0;
-  width: 100vw;
-  height: 100vh;
   z-index: 0;
   display: block;
   opacity: 0;
@@ -166,7 +165,7 @@ a:focus-visible, button:focus-visible {
 
 /* ---------- 히어로 ---------- */
 .hero {
-  min-height: 100vh;
+  min-height: 100svh;      /* 모바일 주소창이 보여도 한 화면 안에 */
   display: flex; flex-direction: column; justify-content: center;
   padding-top: 128px; padding-bottom: 96px;
 }
@@ -175,7 +174,8 @@ a:focus-visible, button:focus-visible {
   font-weight: 700;
   font-size: clamp(27px, 4.2vw, 60px);   /* 긴 문구도 2줄 · 행성과 겹치지 않는 크기 */
   line-height: 1.3; letter-spacing: -0.015em;
-  margin: 0 0 4px; min-height: 3.9em;
+  margin: 0 0 4px;
+  min-height: max(3.9em, calc(2.6em + 50px));  /* 두 줄 + 저자 높이 고정 — 문구가 바뀌어도 버튼이 흔들리지 않게 */
   opacity: 0; transform: translateY(12px); filter: blur(6px);
   transition: opacity 0.7s ease, transform 0.7s cubic-bezier(.2,.7,.2,1), filter 0.7s ease;
 }
@@ -200,7 +200,7 @@ a:focus-visible, button:focus-visible {
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 14px 28px; border-radius: 100px;
-  font-size: 14.5px; font-weight: 500; letter-spacing: 0.01em; color: var(--ink);
+  font-size: 14.5px; line-height: 1.25; font-weight: 500; letter-spacing: 0.01em; color: var(--ink);
   border: 1px solid rgba(150, 175, 220, 0.22);
   background: rgba(255, 255, 255, 0.045); backdrop-filter: blur(10px);
   /* --mx/--my: JS가 커서를 향해 설정하는 자석 오프셋 · --press: 눌림 */
@@ -212,7 +212,7 @@ a:focus-visible, button:focus-visible {
 .btn:active { --press: 0.97; }
 .btn.primary {
   background: linear-gradient(135deg, #8fccff, #5a8ff0);
-  color: #05101f; border-color: transparent; font-weight: 600;
+  color: #05101f; border-color: transparent; font-weight: 600; backdrop-filter: none;
   box-shadow: 0 8px 26px rgba(70, 130, 230, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 .btn.primary::after { opacity: 0.65; }
@@ -243,7 +243,7 @@ a:focus-visible, button:focus-visible {
 }
 .chips { display: flex; flex-wrap: wrap; gap: 9px; }
 .chip {
-  font-size: 12.5px; padding: 7px 14px; border-radius: 100px;
+  font-size: 12.5px; line-height: 1.25; padding: 7px 14px; border-radius: 100px;
   border: 1px solid var(--line); color: var(--dim);
   background: rgba(255,255,255,0.02);
   transition: color 0.25s, border-color 0.25s, background 0.25s, transform 0.25s;
@@ -268,14 +268,17 @@ a:focus-visible, button:focus-visible {
 /* ---------- 반응형 ---------- */
 /* 터치: 작은 조작부를 손가락 크기로 */
 @media (pointer: coarse) {
-  .chip { padding: 11px 16px; }
+  .chip { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; }
   #planet-menu a { padding: 12px 14px; }
 }
 
 @media (max-width: 760px) {
   .hero { padding-top: 100px; }
-  .channels { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .chip { color: var(--ink); background: rgba(8, 13, 26, 0.62); backdrop-filter: blur(10px); } /* 행성 위에서도 읽히게 */
+  .cta { gap: 10px; margin-top: 32px; }
+  .btn { flex: 1 1 auto; justify-content: center; padding: 14px 20px; } /* 두 버튼이 본문 폭에 맞춰 한 줄로 */
+  .btn:not(.primary) { background: rgba(8, 13, 26, 0.78); backdrop-filter: none; }
+  .channels { flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 36px; }
+  .chip { color: var(--ink); background: rgba(8, 13, 26, 0.78); } /* 행성 위에서도 읽히게 — 움직이는 캔버스 위 블러는 비싸서 불투명도로 */
   .mini-foot { left: 20px; bottom: 16px; }
 }
 
