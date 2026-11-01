@@ -346,7 +346,7 @@ const WORLDS = {
   },
   // 얼음행성 — 갈라진 얼음판 + 극관 + 반짝임
   ice() {
-    const tint = pick([[.45,.60,.74],[.50,.56,.72],[.42,.64,.70]]);
+    const tint = pick([[.45,.60,.74],[.50,.56,.72],[.42,.64,.70],[.56,.52,.70],[.40,.66,.68],[.58,.68,.82]]);
     return {
       name: 'Glacio', ring: Math.random() < 0.3, spin: rnd(0.02, 0.045),
       atmo: { col: [.6,.8,1], strength: 0.6 }, ringCol: [.85,.92,1], ringCol2: [.5,.66,.82],
@@ -357,19 +357,28 @@ const WORLDS = {
       frag: /* glsl */`
         uniform vec3 uIceLo,uIceHi,uCrack;
         void main(){
-          vec3 p=normalize(vObj); vec3 sp=p*2.4+vec3(uSeed); float t=uTime*0.02;
-          vec2 c=cell(sp*1.5);
-          float plate=smoothstep(0.03,0.11,c.y-c.x);
-          float fr=fbm(sp*3.0+vec3(t));
-          vec3 col=mix(uIceLo,uIceHi,clamp(fr*0.6+plate*0.6,0.0,1.0));
-          col=mix(uCrack,col,plate);
-          col=mix(col,vec3(0.97,0.99,1.0),smoothstep(0.6,0.95,abs(p.y)));
+          vec3 p=normalize(vObj);
+          // 도메인 워프 → 규칙적 격자가 아닌 불규칙한 얼음판·크레바스
+          vec3 wq=vec3(fbm(p*2.0+uSeed),fbm(p*2.0+uSeed+5.3),fbm(p*2.0+uSeed+9.1));
+          vec3 q=p*2.3+(wq-0.5)*1.2+vec3(uSeed);
+          vec2 c=cell(q);
+          float crack=smoothstep(0.0,0.06,c.y-c.x);           // 판 경계(큰 균열)
+          vec2 c2=cell(q*2.7+3.0);
+          float crack2=smoothstep(0.0,0.04,c2.y-c2.x);        // 미세 균열
+          // 서리·눈 질감 — 표면이 평평한 색이 아니게
+          float frost=fbm(p*7.0+uSeed);
+          float snow=fbm(p*15.0-uSeed);
+          vec3 ice=mix(uIceLo,uIceHi,clamp(frost*0.75+0.25,0.0,1.0));
+          ice+=vec3(0.05,0.06,0.07)*snow;                     // 반짝이는 눈가루
+          vec3 col=mix(uCrack*(0.8+0.5*frost),ice,crack);     // 균열은 짙은 청색(깊이감)
+          col=mix(col*0.9,col,crack2);
+          col=mix(col,vec3(0.97,0.99,1.0),smoothstep(0.55,0.95,abs(p.y))*(0.55+0.45*snow)); // 극관
           vec3 N=normalize(vWN); float ndl=dot(N,normalize(uSun));
           float day=smoothstep(-0.15,0.45,ndl);
           float limb=pow(clamp(dot(N,normalize(vVD)),0.,1.),0.4);
           vec3 H=normalize(normalize(uSun)+normalize(vVD));
-          float spec=pow(clamp(dot(N,H),0.0,1.0),60.0)*plate;
-          vec3 lit=col*(0.10+day*0.95)*(0.65+0.35*limb)+vec3(0.8,0.9,1.0)*spec*day*0.8;
+          float spec=pow(clamp(dot(N,H),0.0,1.0),70.0)*(0.4+0.6*crack); // 판 위주 반짝임
+          vec3 lit=col*(0.10+day*0.95)*(0.65+0.35*limb)+vec3(0.85,0.92,1.0)*spec*day*0.9;
           lit+=col*(1.0-day)*0.05;
           gl_FragColor=vec4(lit,uOpacity);
         }`,
@@ -509,9 +518,14 @@ let ring = null;
 if (hasRing) {
   const inner = R * rnd(1.24, 1.5);
   const outer = inner + R * rnd(0.55, 1.45);           // 폭이 매번 다름(좁은 링 ↔ 넓은 원반)
-  const rg = new THREE.RingGeometry(inner, outer, 220, 1);
+  const rg = new THREE.RingGeometry(inner, outer, 240, 1);
   const rp = rg.attributes.position, ruv = rg.attributes.uv, tmp = new THREE.Vector3();
-  for (let i = 0; i < rp.count; i++) { tmp.fromBufferAttribute(rp, i); ruv.setXY(i, (tmp.length() - inner) / (outer - inner), 0.5); }
+  for (let i = 0; i < rp.count; i++) {
+    tmp.fromBufferAttribute(rp, i);
+    const ru = (tmp.length() - inner) / (outer - inner);
+    const ang = (Math.atan2(tmp.y, tmp.x) + Math.PI) / (Math.PI * 2); // 각도 → 궤도 운동에 사용
+    ruv.setXY(i, ru, ang);
+  }
   // 1~3개의 틈을 임의 위치·폭으로 (매번 다른 간극 구조)
   const gapN = Math.floor(rnd(1, 3.999));
   const gapPos = [0.5, 0.5, 0.5], gapW = [0.02, 0.02, 0.02];
@@ -519,27 +533,33 @@ if (hasRing) {
   ring = new THREE.Mesh(rg, new THREE.ShaderMaterial({
     side: THREE.DoubleSide, transparent: true, depthWrite: false,
     uniforms: {
-      uOpacity: { value: REDUCE ? 1 : 0 }, uSeed: { value: seed },
+      uOpacity: { value: REDUCE ? 1 : 0 }, uSeed: { value: seed }, uTime: { value: 0 },
       uCol: { value: new THREE.Color(...world.ringCol) }, uDeep: { value: new THREE.Color(...world.ringCol2) },
       uBandF: { value: rnd(70, 190) }, uDens: { value: rnd(0.65, 1.0) }, uBright: { value: rnd(0.8, 1.15) },
+      uSpin: { value: rnd(0.12, 0.26) * (Math.random() < 0.5 ? 1 : -1) },
       uGapPos: { value: gapPos }, uGapW: { value: gapW }, uGapN: { value: gapN },
     },
     vertexShader: /* glsl */`varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: /* glsl */`
       precision highp float; varying vec2 vUv;
-      uniform float uOpacity, uSeed, uBandF, uDens, uBright;
+      uniform float uOpacity, uSeed, uBandF, uDens, uBright, uTime, uSpin;
       uniform vec3 uCol, uDeep; uniform float uGapPos[3]; uniform float uGapW[3]; uniform int uGapN;
       float hash(float n){ return fract(sin(n) * 43758.5453); }
       float bn(float x){ float i=floor(x),f=fract(x); f=f*f*(3.0-2.0*f); return mix(hash(i),hash(i+1.0),f); }
       void main(){
         float u = vUv.x;                                   // 0 내측 … 1 외측
+        float ang = vUv.y * 6.28318;                       // 둘레 각도
         float bands = 0.5 + 0.5 * sin(u * uBandF + uSeed); // 촘촘한 띠(간격 랜덤)
         float fine = bn(u * 55.0 + uSeed) * 0.6 + bn(u * 190.0) * 0.4;
+        // 궤도 운동: 안쪽이 더 빠른 케플러 전단 — 농담 덩어리가 둘레를 따라 흐름
+        float spd = uSpin / (0.42 + u * 0.85);
+        float orbit = ang + uTime * spd;
+        float clump = 0.70 + 0.30 * sin(orbit * (5.0 + floor(uBandF * 0.06)) + fine * 6.2831);
         float gap = 1.0;                                   // 여러 틈을 곱해 합성
         for (int i = 0; i < 3; i++) {
           if (i < uGapN) gap *= smoothstep(uGapW[i], uGapW[i] + 0.012, abs(u - uGapPos[i]));
         }
-        float dens = clamp(bands * 0.32 + fine * 0.85, 0.0, 1.0) * gap * uDens;
+        float dens = clamp(bands * 0.32 + fine * 0.85, 0.0, 1.0) * gap * uDens * clump;
         dens *= smoothstep(0.0, 0.06, u) * smoothstep(1.0, 0.88, u); // 안팎 페이드
         vec3 col = mix(uDeep * 1.3, uCol, fine) * uBright;
         gl_FragColor = vec4(col, dens * 0.92 * uOpacity);
@@ -798,7 +818,10 @@ function animate() {
     planetGroup.position.y = planetBaseY + Math.sin(et * 0.4) * 7; // 미세한 부유
     if (atmo) atmo.scale.setScalar(1.0 + Math.sin(et * 0.5) * 0.014); // 숨쉬는 대기 글로우
     if (planetFadeIn && planetUniforms.uOpacity.value < 1) planetUniforms.uOpacity.value = Math.min(1, planetUniforms.uOpacity.value + dt * 1.8); // 행성 페이드인
-    if (ring && planetFadeIn && ring.material.uniforms.uOpacity.value < 1) ring.material.uniforms.uOpacity.value = Math.min(1, ring.material.uniforms.uOpacity.value + dt * 1.5);
+    if (ring) {
+      ring.material.uniforms.uTime.value = tt;                  // 고리 궤도 운동
+      if (planetFadeIn && ring.material.uniforms.uOpacity.value < 1) ring.material.uniforms.uOpacity.value = Math.min(1, ring.material.uniforms.uOpacity.value + dt * 1.5);
+    }
     // 위성 궤도 운동(기울어진 타원) + 페이드인
     for (let mi = 0; mi < moons.length; mi++) {
       const m = moons[mi];
