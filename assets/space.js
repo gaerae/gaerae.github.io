@@ -274,7 +274,7 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 /* 세계 유형 — 형태 자체가 다른 5종. 각 유형이 전용 표면 셰이더·대기·고리·이름을 반환 */
 /* 실제 천체 — 공개 라이선스 고해상 텍스처를 구에 입힘. 접속마다 랜덤.
-   행성: Solar System Scope (CC BY 4.0) / 이오·유로파·타이탄·명왕성: NASA·USGS (public domain).
+   행성: Solar System Scope (CC BY 4.0) / 위성·왜소행성(이오·유로파·가니메데·칼리스토·타이탄·명왕성): NASA·USGS (public domain).
    실제 편평도(obl)·자전축 기울기(천왕성 98°)·고리(토성 실측, 그 외 희미한 절차적)까지 반영. */
 const TEX = 'assets/textures/';
 const BODIES = [
@@ -292,8 +292,10 @@ const BODIES = [
   { nm:'Earth',   tex:'2k_earth_daymap.jpg',     spin:0.035, atmo:{col:[.46,.70,1],s:0.95} },
   { nm:'Mercury', tex:'2k_mercury.jpg',          spin:0.020, atmo:null },
   { nm:'Luna',    tex:'2k_moon.jpg',             spin:0.018, atmo:null },
-  { nm:'Io',      tex:'2k_io.jpg',               spin:0.022, atmo:null },                       // 목성 위성 — 화산·유황
-  { nm:'Europa',  tex:'2k_europa.jpg',           spin:0.020, atmo:{col:[.72,.84,.96],s:0.16} }, // 목성 위성 — 얼음(균열선)
+  { nm:'Io',       tex:'2k_io.jpg',              spin:0.022, atmo:null },                       // 목성 위성 — 화산·유황
+  { nm:'Europa',   tex:'2k_europa.jpg',          spin:0.020, atmo:{col:[.72,.84,.96],s:0.16} }, // 목성 위성 — 얼음(균열선)
+  { nm:'Ganymede', tex:'2k_ganymede.jpg',        spin:0.019, atmo:null },                       // 목성 위성 — 최대 위성, 명암 지형
+  { nm:'Callisto', tex:'2k_callisto.jpg',        spin:0.017, atmo:null },                       // 목성 위성 — 크레이터 뒤덮인 암흑 표면
   { nm:'Titan',   tex:'2k_titan.jpg',            spin:0.020, haze:[1,.60,.26], atmo:{col:[1,.66,.30],s:0.92} }, // 토성 위성 — 짙은 오렌지 스모그
   { nm:'Pluto',   tex:'2k_pluto.jpg',            spin:0.016, atmo:{col:[.56,.70,.95],s:0.24} }, // 왜소행성 — 옅은 블루 헤이즈(하트)
 ];
@@ -553,9 +555,9 @@ const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.40,  // strength
-  0.55,  // radius
-  0.62   // threshold — 가장 밝은 부분만(톤매핑과 함께 과노출 방지)
+  0.32,  // strength — 은은하게(행성 표면이 하얗게 번지지 않도록)
+  0.50,  // radius
+  0.82   // threshold — 태양·별·날카로운 반사만 발광, 밝은 행성 표면은 색·디테일 보존
 );
 composer.addPass(bloom);
 
