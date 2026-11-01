@@ -346,13 +346,13 @@ const WORLDS = {
   },
   // 얼음행성 — 갈라진 얼음판 + 극관 + 반짝임
   ice() {
-    const tint = pick([[.45,.60,.74],[.50,.56,.72],[.42,.64,.70],[.56,.52,.70],[.40,.66,.68],[.58,.68,.82]]);
+    const tint = pick([[.24,.46,.76],[.30,.54,.82],[.20,.52,.74],[.34,.50,.84],[.18,.58,.78],[.28,.60,.88]]);
     return {
       name: 'Glacio', ring: Math.random() < 0.3, spin: rnd(0.02, 0.045),
-      atmo: { col: [.6,.8,1], strength: 0.6 }, ringCol: [.85,.92,1], ringCol2: [.5,.66,.82],
+      atmo: { col: [.42,.72,1], strength: 0.72 }, ringCol: [.80,.92,1], ringCol2: [.42,.64,.88],
       uniforms: {
-        uIceLo:{value:new THREE.Color(...tint)}, uIceHi:{value:new THREE.Color(.92,.97,1)},
-        uCrack:{value:new THREE.Color(.18,.32,.52)},
+        uIceLo:{value:new THREE.Color(...tint)}, uIceHi:{value:new THREE.Color(.66,.86,1)},
+        uCrack:{value:new THREE.Color(.06,.18,.44)},
       },
       frag: /* glsl */`
         uniform vec3 uIceLo,uIceHi,uCrack;
@@ -368,18 +368,25 @@ const WORLDS = {
           // 서리·눈 질감 — 표면이 평평한 색이 아니게
           float frost=fbm(p*7.0+uSeed);
           float snow=fbm(p*15.0-uSeed);
-          vec3 ice=mix(uIceLo,uIceHi,clamp(frost*0.75+0.25,0.0,1.0));
-          ice+=vec3(0.05,0.06,0.07)*snow;                     // 반짝이는 눈가루
-          vec3 col=mix(uCrack*(0.8+0.5*frost),ice,crack);     // 균열은 짙은 청색(깊이감)
-          col=mix(col*0.9,col,crack2);
-          col=mix(col,vec3(0.97,0.99,1.0),smoothstep(0.55,0.95,abs(p.y))*(0.55+0.45*snow)); // 극관
+          vec3 ice=mix(uIceLo,uIceHi,clamp(frost*0.6,0.0,1.0)); // 흰색으로 덜 쏠리게 → 파란 몸체 유지
+          ice+=vec3(0.02,0.05,0.09)*snow*0.8;                   // 푸른 눈가루
+          vec3 col=mix(uCrack*(0.7+0.5*frost),ice,crack);       // 균열은 짙고 진한 청색(크레바스 깊이)
+          col=mix(col*0.84,col,crack2);
+          col=mix(col,vec3(0.70,0.86,1.0),smoothstep(0.6,0.95,abs(p.y))*(0.4+0.5*snow)); // 극관(얼음빛 청백)
           vec3 N=normalize(vWN); float ndl=dot(N,normalize(uSun));
           float day=smoothstep(-0.15,0.45,ndl);
-          float limb=pow(clamp(dot(N,normalize(vVD)),0.,1.),0.4);
+          float vd=clamp(dot(N,normalize(vVD)),0.0,1.0);
+          float limb=pow(vd,0.4);
+          float fres=pow(1.0-vd,3.0);                           // 가장자리 프레넬
+          vec3 irid=0.5+0.5*cos(6.2831*(fres*1.4+vec3(0.0,0.33,0.66))+uSeed); // 얇은 막 간섭 같은 영롱색
           vec3 H=normalize(normalize(uSun)+normalize(vVD));
-          float spec=pow(clamp(dot(N,H),0.0,1.0),70.0)*(0.4+0.6*crack); // 판 위주 반짝임
-          vec3 lit=col*(0.10+day*0.95)*(0.65+0.35*limb)+vec3(0.85,0.92,1.0)*spec*day*0.9;
-          lit+=col*(1.0-day)*0.05;
+          float sdn=clamp(dot(N,H),0.0,1.0);
+          float sparkle=pow(fbm(p*58.0+uSeed),6.0)*pow(sdn,10.0); // 결정 반짝임(트윙클)
+          float spec=pow(sdn,80.0)*(0.5+0.5*crack)+sparkle*1.8;
+          vec3 lit=col*(0.10+day*0.80)*(0.62+0.38*limb);        // 과노출 방지 → 파란색 유지
+          lit+=vec3(0.80,0.92,1.0)*spec*day;                    // 차가운 결정 하이라이트(반짝임)
+          lit+=irid*fres*day*0.26;                              // 영롱한 가장자리 색
+          lit+=vec3(0.10,0.26,0.52)*(1.0-day)*0.16;             // 야간측 푸른 자생광
           gl_FragColor=vec4(lit,uOpacity);
         }`,
     };
