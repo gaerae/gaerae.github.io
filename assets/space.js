@@ -3,7 +3,6 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { chooseBody, FIXED_WORLD } from 'app/bodies.js';
 import { createCraft, SampledPass } from 'app/craft.js';
@@ -32,9 +31,9 @@ let pixelRatio = Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2); // 모�
 renderer.setPixelRatio(pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x01020a, 1);
-// 시네마틱 톤매핑 — 하이라이트를 부드럽게 롤오프해 실사감↑·과노출 방지(지구 등)
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.12;
+// 시네마틱 톤매핑 노출 — 하이라이트를 부드럽게 롤오프해 실사감↑·과노출 방지(지구 등)
+// - 톤매핑은 마지막 그레이딩 패스가 직접 수행(장면은 전부 오프스크린 타깃에 그려짐)
+const EXPOSURE = 1.12;
 
 const scene = new THREE.Scene();
 const FOV = 68;
@@ -383,6 +382,21 @@ function layoutPlanet() {
   planetGroup.position.set(layoutNow.x, layoutNow.y, layoutTo.z);
   planetGroup.scale.setScalar(layoutNow.scale);
   planetCam.position.z = -layoutTo.z * (LENS_K - 1);
+  aimQuoteInk(hero);
+}
+
+// 문구 잉크 그라데이션 방향 = 문구 중심 → 천체 중심(화면 좌표)
+// - 기본 구도 기준: 집중 모드에선 문구가 걷혀 있음
+// - 배치가 바뀔 때만 호출(리사이즈·모드 전환) → 레이아웃 읽기는 프레임마다 일어나지 않음
+const quoteEl = document.querySelector('#headline .quote-text');
+const planetOnScreen = new THREE.Vector3();
+function aimQuoteInk({ x, y, z }) {
+  planetCam.updateMatrixWorld();
+  planetOnScreen.set(x, y, z).project(planetCam);
+  const box = quoteEl.getBoundingClientRect();
+  const dx = (planetOnScreen.x + 1) / 2 * window.innerWidth - (box.left + box.width / 2);
+  const dy = (1 - planetOnScreen.y) / 2 * window.innerHeight - (box.top + box.height / 2);
+  rootEl.style.setProperty('--ink-angle', `${THREE.MathUtils.radToDeg(Math.atan2(dx, -dy)).toFixed(0)}deg`); // CSS 각도: 0deg 위, 90deg 오른쪽
 }
 layoutPlanet();
 planetScene.add(planetGroup);
@@ -862,18 +876,30 @@ const bloom = new UnrealBloomPass(
 );
 composer.addPass(bloom);
 
-// 시네마틱 그레이딩: 색수차 + 필름 그레인 + 가장자리 감광 (SF 질감)
-const grade = new ShaderPass({
+// 시네마틱 그레이딩(색수차 + 필름 그레인 + 가장자리 감광) + 화면 출력 변환을 한 패스로
+// - OutputPass 를 따로 두면 전체 화면 읽기·쓰기가 한 번 더 듦
+// - 출력 변환은 OutputPass 와 같은 셰이더 청크(ACES 톤매핑 → sRGB) → 결과 동일
+// - RawShaderMaterial: 화면에 그려도 three 가 톤매핑을 한 번 더 덧붙이지 않음
+const grade = new ShaderPass(new THREE.RawShaderMaterial({
   uniforms: {
     tDiffuse: { value: null },
     uTime: { value: 0 },
     uAberration: { value: 0.0006 },
     uGrain: { value: 0.010 },
+    toneMappingExposure: { value: EXPOSURE },
   },
-  vertexShader: UV_VERT,
+  vertexShader: /* glsl */`
+    precision highp float;
+    attribute vec3 position; attribute vec2 uv;
+    uniform mat4 modelViewMatrix, projectionMatrix;
+    varying vec2 vUv;
+    void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
   fragmentShader: /* glsl */`
+    precision highp float;
     varying vec2 vUv;
     uniform sampler2D tDiffuse; uniform float uTime; uniform float uAberration; uniform float uGrain;
+    #include <tonemapping_pars_fragment>
+    #include <colorspace_pars_fragment>
     void main(){
       vec2 uv = vUv;
       vec2 dir = uv - 0.5;
@@ -889,12 +915,11 @@ const grade = new ShaderPass({
       col += (n - 0.5) * uGrain;
       // 은은한 가장자리 감광
       col *= 1.0 - d * 0.18;
-      gl_FragColor = vec4(col, 1.0);
+      gl_FragColor = sRGBTransferOETF(vec4(ACESFilmicToneMapping(col), 1.0));
     }
   `,
-});
+}));
 composer.addPass(grade);
-composer.addPass(new OutputPass());
 
 /* ============================================================
  *  5. 인터랙션
