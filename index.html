@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+<script>try { if (sessionStorage.getItem('gaerae.focus')) document.documentElement.classList.add('focus'); } catch {}</script>
   <!-- Google tag (gtag.js) — GA4 -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-WSW3FGPJMD"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
-    gtag('config', 'G-WSW3FGPJMD');
+    gtag('config', 'G-WSW3FGPJMD', { send_page_view: !document.documentElement.classList.contains('focus') }); // 집중 모드의 천체 전환은 새 방문이 아니다
   </script>
 
   <meta charset="UTF-8">
@@ -28,18 +29,20 @@
   <meta property="og:site_name" content="개래닷컴">
   <meta property="og:locale" content="ko_KR">
   <meta property="og:title" content="개래닷컴">
-  <meta property="og:url" content="https://gaerae.com">
+  <meta property="og:url" content="https://gaerae.com/">
   <meta property="og:description" content="개발자를 위한 블로그, 개발자스럽다.">
-  <meta property="og:image" content="https://gaerae.com/assets/og.png">
+  <meta property="og:image" content="https://gaerae.com/assets/og.jpg">
+  <meta property="og:image:type" content="image/jpeg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="개래닷컴">
+  <meta property="og:image:alt" content="gaerae.com 글자와 NASA SDO 위성이 촬영한 태양">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@gaeraecom">
   <meta name="twitter:creator" content="@gaeraecom">
   <meta name="twitter:title" content="개래닷컴">
   <meta name="twitter:description" content="개발자를 위한 블로그, 개발자스럽다.">
-  <meta name="twitter:image" content="https://gaerae.com/assets/og.png">
+  <meta name="twitter:image" content="https://gaerae.com/assets/og.jpg">
+  <meta name="twitter:image:alt" content="gaerae.com 글자와 NASA SDO 위성이 촬영한 태양">
   <script type='application/ld+json'>{
     "@context": "https://schema.org",
     "@type": "Person",
@@ -82,7 +85,7 @@
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="assets/space.css?v=55f36c6bf3">
+  <link rel="stylesheet" href="assets/space.css?v=95fb77b4f9">
 
   <!-- 모듈: Three.js(WebGL) + 사이트 스크립트 — 버전은 scripts/version.mjs 가 갱신 -->
   <script type="importmap">
@@ -91,33 +94,46 @@
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js",
       "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
       "app/bag.js": "./assets/bag.js?v=55e64d47c9",
-      "app/bodies.js": "./assets/bodies.js?v=a22d1c5f84",
-      "app/picker.js": "./assets/picker.js?v=8fa4e73f5e",
-      "app/quotes.js": "./assets/quotes.js?v=d7548212d7"
+      "app/bodies.js": "./assets/bodies.js?v=2040940427",
+      "app/craft.js": "./assets/craft.js?v=7967cb9bc2",
+      "app/picker.js": "./assets/picker.js?v=02f9471516",
+      "app/quotes.js": "./assets/quotes.js?v=e85da471f3",
+      "app/zoom.js": "./assets/zoom.js?v=3bffd9daa9"
     }
   }
   </script>
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js">
   <link rel="modulepreload" href="assets/bag.js?v=55e64d47c9">
-  <link rel="modulepreload" href="assets/bodies.js?v=a22d1c5f84">
-  <link rel="modulepreload" href="assets/picker.js?v=8fa4e73f5e">
-  <link rel="modulepreload" href="assets/quotes.js?v=d7548212d7">
+  <link rel="modulepreload" href="assets/bodies.js?v=2040940427">
+  <link rel="modulepreload" href="assets/craft.js?v=7967cb9bc2">
+  <link rel="modulepreload" href="assets/picker.js?v=02f9471516">
+  <link rel="modulepreload" href="assets/quotes.js?v=e85da471f3">
+  <link rel="modulepreload" href="assets/zoom.js?v=3bffd9daa9">
 </head>
 <body>
 
 <!-- WebGL 우주 배경 -->
 <canvas id="space" aria-hidden="true"></canvas>
 <div class="vignette" aria-hidden="true"></div>
+<div id="focusfade" aria-hidden="true"></div>
 <div id="warpflash" aria-hidden="true"></div>
 <!-- 현재 천체 라벨 겸 선택기(우상단, 은은하게) -->
-<nav id="planet-nav">
-  <button id="planet-label" type="button" aria-expanded="false" aria-controls="planet-menu"></button>
+<nav id="planet-nav" aria-label="천체 선택">
+  <div class="planet-row">
+    <button id="focus-toggle" type="button" aria-pressed="false" aria-label="집중 모드" aria-keyshortcuts="f" title="집중 모드 (F)">
+      <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.1"><path class="icon-out" d="M1 4V1h3M8 1h3v3M11 8v3H8M4 11H1V8"/><path class="icon-in" d="M4 1v3H1M8 1v3h3M11 8H8v3M4 11V8H1"/></svg>
+      <span>Focus</span>
+    </button>
+    <button id="planet-label" type="button" aria-expanded="false" aria-controls="planet-menu"></button>
+  </div>
+  <div id="planet-meta"></div>
+  <div id="distance" aria-hidden="true"></div>
   <ul id="planet-menu" hidden></ul>
 </nav>
 
 <!-- 네비게이션 -->
-<nav class="nav" id="nav">
-  <a class="brand" href="https://gaerae.com"><span class="dot"></span>gaerae.com</a>
+<nav class="nav" id="nav" aria-label="사이트">
+  <a class="brand" href="https://gaerae.com">gaerae.com</a>
 </nav>
 
 <main class="content">
@@ -125,36 +141,33 @@
   <h1 class="sr-only">개래닷컴 — 개발자를 위한 블로그, 개발자스럽다</h1>
 
   <!-- 허브 (한 화면) -->
-  <header class="hero wrap">
+  <header class="hero">
+    <p id="quote-sr" class="sr-only"></p>
     <blockquote id="headline">
-      <span class="glow">천 리 길도<br>한 걸음에서 시작된다</span>
+      <span class="quote-text">천 리 길도<br>발밑에서 시작된다</span>
       <cite class="who">Lao Tzu</cite>
     </blockquote>
 
-    <div class="cta">
-      <a class="btn primary" href="https://blog.gaerae.com" target="_blank" rel="noopener">개발자스럽다 블로그</a>
-      <a class="btn" href="https://github.com/gaerae" target="_blank" rel="noopener">GitHub</a>
-    </div>
-
-    <div class="channels">
-      <span class="channels-label">Channels</span>
-      <div class="chips">
-        <a class="chip" href="https://x.com/gaeraecom" target="_blank" rel="noopener">X</a>
-        <a class="chip" href="https://facebook.com/gaeraecom" target="_blank" rel="noopener">Facebook</a>
-        <a class="chip" href="https://www.linkedin.com/company/gaeraecom" target="_blank" rel="noopener">LinkedIn</a>
-        <a class="chip" href="https://www.instagram.com/gaeraecom" target="_blank" rel="noopener">Instagram</a>
-        <a class="chip" href="https://youtube.com/gaeraecom" target="_blank" rel="noopener">YouTube</a>
-      </div>
-    </div>
+    <nav class="links" aria-label="바로가기">
+      <a class="link main" href="https://blog.gaerae.com" target="_blank" rel="noopener" aria-label="개발자스럽다 블로그" title="개발자가 알아야 할 기술 소식을 맥락과 함께 정리하는 블로그">개발자스럽다</a>
+      <a class="link main" href="https://github.com/gaerae" target="_blank" rel="noopener">GitHub</a>
+      <span class="links-rest">
+        <a class="link" href="https://facebook.com/gaeraecom" target="_blank" rel="noopener">Facebook</a>
+        <a class="link" href="https://www.linkedin.com/company/gaeraecom" target="_blank" rel="noopener">LinkedIn</a>
+        <a class="link" href="https://www.instagram.com/gaeraecom" target="_blank" rel="noopener">Instagram</a>
+        <a class="link" href="https://youtube.com/gaeraecom" target="_blank" rel="noopener">YouTube</a>
+        <a class="link" href="https://x.com/gaeraecom" target="_blank" rel="noopener">X</a>
+      </span>
+    </nav>
   </header>
 
-  <footer class="mini-foot">© <span id="year">2026</span> gaerae.com<span class="credit"> · 행성 텍스처 <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noopener">Solar System Scope</a> (CC&nbsp;BY&nbsp;4.0) · NASA/USGS</span></footer>
+  <footer class="mini-foot">© <span id="year">2026</span> gaerae.com<span class="credit"> · 천체 텍스처 <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noopener">Solar System Scope</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener license">CC&nbsp;BY&nbsp;4.0</a>, 일부 수정) · NASA/USGS<span id="credit-body"></span></span></footer>
 
 </main>
 
 <!-- 히어로 UI · 우주 씬 -->
-<script type="module" src="assets/hero.js?v=cbc916b081"></script>
-<script type="module" src="assets/space.js?v=9fb5e10b08"></script>
+<script type="module" src="assets/hero.js?v=11d44791b2"></script>
+<script type="module" src="assets/space.js?v=5fe23d8d7e"></script>
 
 </body>
 </html>

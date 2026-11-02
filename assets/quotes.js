@@ -13,12 +13,12 @@ export const QUOTES = [
   { q: '단순함은<br>신뢰성의 전제 조건이다', who: 'Edsger W. Dijkstra' },                        // EWD498, 1975
   { q: '더할 것이 없을 때가 아니라<br>뺄 것이 없을 때 완벽해진다', who: 'Antoine de Saint-Exupéry' }, // 인간의 대지, 1939
   { q: '당신의 시간은 한정돼 있다<br>남의 삶을 살며 낭비하지 마라', who: 'Steve Jobs' },        // 스탠퍼드 졸업 연설, 2005
-  { q: '삶은 자전거 타기와 같다<br>균형을 잡으려면 나아가야 한다', who: 'Albert Einstein' }, // 아들에게 보낸 편지, 1930
+  { q: '사람은 자전거와 같다<br>달려야 균형을 잡는다', who: 'Albert Einstein' }, // 아들에게 보낸 편지, 1930
   { q: '위대한 일은<br>작은 것들이 모여 이뤄진다', who: 'Vincent van Gogh' },                    // 테오에게 보낸 편지, 1882
   { q: '시작하는 방법은<br>말을 멈추고 행동하는 것이다', who: 'Walt Disney' },                   // 헤다 호퍼 인터뷰, 1957
   { q: '우리가 두려워할 것은<br>두려움 그 자체뿐이다', who: 'Franklin D. Roosevelt' },           // 취임 연설, 1933
   { q: '결코, 결코<br>굴복하지 마라', who: 'Winston Churchill' },                                // 해로 스쿨 연설, 1941
-  { q: '천 리 길도<br>한 걸음에서 시작된다', who: 'Lao Tzu' },                                   // 도덕경 64장
+  { q: '천 리 길도<br>발밑에서 시작된다', who: 'Lao Tzu' },                                   // 도덕경 64장
   { q: '혼자서는 작지만<br>함께라면 많은 것을 이룬다', who: 'Helen Keller' },                    // Quote Investigator
   { q: '우리가 달라지면<br>세상의 흐름도 달라진다', who: 'Mahatma Gandhi' },                     // 1913
   { q: '가장 큰 영광은<br>넘어질 때마다 일어서는 것', who: 'Oliver Goldsmith' },                 // 세계 시민, 1760
@@ -39,7 +39,7 @@ export const QUOTES = [
   { q: '앞은 조금밖에 보이지 않지만<br>해야 할 일은 충분히 보인다', who: 'Alan Turing' },        // Computing Machinery and Intelligence, 1950
   { q: '베틀이 꽃과 잎을 짜듯<br>기계는 대수의 무늬를 짠다', who: 'Ada Lovelace' },              // 해석기관 주석, 1843
   { q: '섣부른 최적화는<br>모든 악의 근원이다', who: 'Donald Knuth' },                           // Structured Programming with go to Statements, 1974
-  { q: '디버깅은 프로그램 작성보다<br>두 배 어렵다', who: 'Brian W. Kernighan' },                // The Elements of Programming Style, 1974
+  { q: '디버깅은 프로그램 작성보다<br>두 배 어렵다', who: 'Kernighan & Plauger' },               // The Elements of Programming Style 2판, 1978
   { q: '프로그램은 사람이 읽는 글이다<br>기계의 실행은 그다음이다', who: 'Abelson & Sussman' }, // SICP 초판 서문, 1985
   { q: '늦은 프로젝트에 사람을 더하면<br>더 늦어진다', who: 'Fred Brooks' },                    // 맨먼스 미신, 1975
   { q: '단순함은 복잡함에 앞서지 않고<br>그 뒤를 따른다', who: 'Alan Perlis' },                   // Epigrams on Programming 31, 1982
@@ -56,7 +56,7 @@ export const QUOTES = [
   { q: '같은 강물에<br>두 번 들어갈 수 없다', who: 'Heraclitus' },                               // 단편 B91
   { q: '나는 숲으로 갔다<br>신중하게 살고 싶었기에', who: 'Henry David Thoreau' },               // 월든, 1854
   { q: '열정 없이 이뤄진<br>위대한 일은 없다', who: 'Ralph Waldo Emerson' },                     // Circles, 1841
-  { q: '살아갈 이유를 아는 사람은<br>어떤 방식도 견뎌 낸다', who: 'Friedrich Nietzsche' },       // 우상의 황혼, 잠언 12, 1889
+  { q: '살아갈 이유를 아는 사람은<br>거의 어떤 방식도 견뎌 낸다', who: 'Friedrich Nietzsche' },       // 우상의 황혼, 잠언 12, 1889
   { q: '영예는 실제로<br>경기장에 선 사람의 것이다', who: 'Theodore Roosevelt' },                // 소르본 연설, 1910
   { q: '나에게는<br>꿈이 있습니다', who: 'Martin Luther King Jr.' },                              // 워싱턴 행진 연설, 1963
   { q: '할 수 없다고 생각하는 일을<br>해야 한다', who: 'Eleanor Roosevelt' },                    // You Learn by Living, 1960

@@ -1,6 +1,8 @@
 /* ============================================================
  *  gaerae.com — 우주 항해 랜딩 스타일
  * ============================================================ */
+@property --tint-s { syntax: "<percentage>"; inherits: true; initial-value: 0%; } /* 전환이 되도록 타입을 등록한다 */
+
 :root {
   --ink: #e9f0f8;
   --dim: #9aabc0;
@@ -8,8 +10,12 @@
   --accent: #7cc4ff;
   --accent-soft: #a9d6ff;
   --line: rgba(130, 170, 220, 0.14);
-  --panel-strong: rgba(7, 12, 24, 0.74);
-  --maxw: 1120px;
+  --line-strong: rgba(150, 175, 220, 0.24);
+  --panel: rgba(7, 12, 24, 0.94);
+  --hud-shadow: 0 1px 10px rgba(3, 6, 16, 0.75);                 /* 밝은 천체 위에서도 읽히게 */
+  --hud-shadow-strong: 0 1px 8px rgba(3, 6, 16, 0.9);
+  --tint-h: 0; --tint-s: 0%;                                     /* 문구에 옮겨 오는 천체의 색 — 흰색에서 시작해 space.js 가 표면 평균색으로 물들인다 */
+  transition: --tint-s 1.2s ease;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -31,7 +37,6 @@ body {
   overflow-x: hidden;
   word-break: keep-all;
   cursor: grab;            /* 행성을 굴릴 수 있다는 어포던스 */
-  touch-action: pan-y;     /* 터치: 세로는 스크롤, 가로는 행성 굴리기 */
 }
 body.grabbing { cursor: grabbing; user-select: none; -webkit-user-select: none; }
 
@@ -47,17 +52,19 @@ body.departing #warpflash { opacity: 1; }
 #planet-nav {
   position: fixed; top: 22px; right: 28px; z-index: 11;  /* 상단 네비(.nav, z:10) 위 — 포인터 이벤트가 라벨에 닿게 */
   display: flex; flex-direction: column; align-items: flex-end;
+  transition: opacity 0.7s ease;
 }
-/* 라벨: 기존의 조용한 카탈로그 텍스트 그대로 — 버튼 티를 내지 않음 */
-#planet-label {
-  appearance: none; border: 0; background: none;
-  margin: -9px 0; padding: 11px 0;                /* 보이는 크기는 그대로, 누를 수 있는 영역만 확보 */
-  font-family: "Space Grotesk", sans-serif; font-size: 12px; font-weight: 500;
-  letter-spacing: 0.3em; text-transform: uppercase; color: var(--dim);
-  cursor: pointer; pointer-events: auto; white-space: nowrap;
-  text-shadow: 0 1px 10px rgba(3, 6, 16, 0.75);   /* 밝은 행성 위에서도 읽히게 */
+.no-webgl #planet-nav { display: none; }                 /* 우주가 없으면 조작할 것도 없다 */
+.planet-row { display: flex; align-items: center; gap: 14px; }
+/* 라벨과 집중 모드 토글: 조용한 카탈로그 글자 — 버튼 티를 내지 않는다 */
+#planet-label, #focus-toggle {
+  appearance: none; border: 0; background: none; color: var(--dim); cursor: pointer;
+  margin: -9px 0;                                 /* 보이는 크기는 그대로, 누를 수 있는 영역만 확보 */
+  font-family: "Space Grotesk", sans-serif; font-weight: 500; text-transform: uppercase; white-space: nowrap;
+  text-shadow: var(--hud-shadow);
   opacity: 0; transition: opacity 1.1s ease, color 0.3s ease;
 }
+#planet-label { padding: 11px 0; font-size: 12px; letter-spacing: 0.3em; }
 #planet-label.show { opacity: 1; }
 #planet-label.dim { opacity: 0.78; }          /* 소개 후에도 읽을 수 있을 만큼 남김(발견 가능) */
 #planet-label:focus-visible { opacity: 1; color: var(--accent-soft); }
@@ -72,31 +79,86 @@ body.departing #warpflash { opacity: 1; }
   #planet-nav:hover #planet-label::after { opacity: 0.85; }
 }
 
-/* 메뉴: 조용한 글래스 리스트 (전체 톤을 깨지 않게) */
+#focus-toggle {
+  display: inline-flex; align-items: center; gap: 7px; position: relative;
+  padding: 11px 14px 11px 0; font-size: 10.5px; letter-spacing: 0.26em;
+}
+#focus-toggle::before {
+  content: ""; position: absolute; right: 0; top: 50%; height: 11px; margin-top: -5.5px;
+  border-left: 1px solid var(--line-strong);
+}
+#focus-toggle .icon-in { display: none; }                /* 켜지면 모서리가 안쪽을 향한다 — 전체 화면 아이콘과 구분 */
+html.focus #focus-toggle .icon-in { display: inline; }
+html.focus #focus-toggle .icon-out { display: none; }
+#focus-toggle.show { opacity: 0.74; }
+html.focus #focus-toggle { color: var(--accent-soft); opacity: 0.9; }
+@media (hover: hover) { #focus-toggle:hover { opacity: 1; color: var(--accent-soft); } }
+#focus-toggle:focus-visible { opacity: 1; }
+
+#planet-meta {
+  margin-top: 5px; font-size: 11px; line-height: 1.4; letter-spacing: 0.02em; color: var(--dim);
+  text-shadow: var(--hud-shadow); opacity: 0; transition: opacity 1.1s ease; pointer-events: none;
+}
+#planet-meta.show { opacity: 0.9; }
+#planet-meta.dim { opacity: 0.72; }
+#distance {
+  margin-top: 3px; font-family: "Space Grotesk", sans-serif; font-size: 10.5px; letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums; color: var(--dim); text-shadow: var(--hud-shadow);
+  opacity: 0; transition: opacity 0.8s ease; pointer-events: none;
+}
+html.ranging #distance { opacity: 0.8; }
+
+/* 집중 모드 — 글을 걷고 우주만 남긴다 */
+html.focus .hero, html.focus .nav { opacity: 0; transform: translateY(-6px); }
+.mini-foot { transition: opacity 0.9s ease; }
+html.focus .mini-foot { opacity: 0.42; }                 /* CC BY 표기는 남긴다 */
+html.focus.idle #planet-nav:not(:has(:focus-visible)) { opacity: 0; } /* 키보드로 머무는 동안은 사라지지 않는다 */
+html.focus.idle, html.focus.idle * { cursor: none !important; }
+#focusfade {
+  position: fixed; inset: 0; z-index: 39; pointer-events: none; opacity: 0;
+  background: #03050f; transition: opacity 1.1s ease;
+}
+html.leaving #focusfade { opacity: 1; }
+html.fits, html.fits body { overflow: hidden; }               /* 커진 문구가 스크롤바를 만들지 않게 */
+
+/* 메뉴: 뒤 문구가 번져 보이지 않게 불투명 패널 */
+#planet-menu, #planet-menu ul { list-style: none; }
 #planet-menu {
-  list-style: none; margin: 10px 0 0; padding: 6px;
-  min-width: 150px; max-height: 60vh; overflow-y: auto; overscroll-behavior: contain;
-  background: var(--panel-strong); backdrop-filter: blur(16px);
+  margin: 10px 0 0; padding: 6px;
+  min-width: 248px; max-height: calc(100svh - 96px); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--panel);
   border: 1px solid var(--line); border-radius: 12px;
+  scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
   box-shadow: 0 18px 50px rgba(2, 6, 18, 0.5);
   opacity: 0; transform: translateY(-6px); transition: opacity 0.26s ease, transform 0.26s ease;
 }
 #planet-menu[hidden] { display: none; }
 #planet-menu.open { opacity: 1; transform: none; }
+.menu-kind {
+  display: block; padding: 10px 12px 3px; font-size: 11px; line-height: 1.4; letter-spacing: 0.04em; color: var(--faint);
+}
+#planet-menu > li:first-child .menu-kind { padding-top: 4px; }
 #planet-menu a {
-  display: block; padding: 8px 12px; border-radius: 8px; text-align: right;
-  font-family: "Space Grotesk", sans-serif; font-size: 12px; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--dim);
+  display: flex; justify-content: space-between; align-items: baseline; gap: 20px;
+  padding: 5px 12px; border-radius: 8px; line-height: 1.5; white-space: nowrap; color: var(--dim);
   transition: background 0.18s ease, color 0.18s ease;
 }
+.menu-nm { font-family: "Space Grotesk", sans-serif; font-size: 13px; letter-spacing: 0.02em; }
+.menu-ko { font-size: 12px; color: var(--faint); }
 #planet-menu a:focus-visible { outline-offset: -2px; }
 #planet-menu a:active { background: rgba(124, 196, 255, 0.16); }
 #planet-menu a[aria-current] { color: var(--accent); }
-#planet-menu a[aria-current]::before { content: "◦ "; opacity: 0.8; }
+#planet-menu a[aria-current] .menu-ko { color: inherit; }
+#planet-menu a[aria-current] .menu-nm::before { content: "◦ "; opacity: 0.8; }
 @media (hover: hover) {
   #planet-menu a:hover { color: var(--ink); background: rgba(124, 196, 255, 0.10); }
 }
-@media (max-width: 760px) { #planet-nav { top: 16px; right: 18px; } }
+@media (max-width: 760px) {
+  #planet-nav { top: 16px; right: 18px; }
+  #focus-toggle span { display: none; }                  /* 좁은 화면은 아이콘만 */
+  #focus-toggle { min-width: 44px; min-height: 44px; justify-content: center; padding: 0 0 0 10px; }
+  .planet-row { gap: 10px; }
+}
 
 /* WebGL 캔버스 — 전체 화면 고정 배경 (준비되면 부드럽게 등장) */
 #space {
@@ -108,6 +170,8 @@ body.departing #warpflash { opacity: 1; }
   transition: opacity 1.2s ease;
 }
 body.ready #space { opacity: 1; }
+#space { touch-action: pan-y; }                  /* 터치: 세로는 스크롤, 가로는 행성 굴리기 */
+html.fits #space { touch-action: none; }         /* 스크롤이 없으면 핀치도 캔버스가 받는다. 글 위에서는 브라우저 확대가 살아 있다 */
 @media (prefers-reduced-motion: reduce) { #space { transition: none; } }
 
 /* WebGL 미지원 시 폴백 그라디언트 */
@@ -127,10 +191,9 @@ body.no-webgl {
     linear-gradient(180deg, rgba(3,3,10,0.55) 0%, transparent 18%, transparent 72%, rgba(3,3,10,0.85) 100%);
 }
 
-/* 콘텐츠 레이어 */
-.content { position: relative; z-index: 2; }
-
-.wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 28px; }
+/* 콘텐츠 레이어 — 빈 곳의 포인터는 캔버스로 통과시킨다 */
+.content { position: relative; z-index: 2; pointer-events: none; }
+#headline, .links a { pointer-events: auto; }
 
 a { color: inherit; text-decoration: none; }
 
@@ -151,108 +214,71 @@ a:focus-visible, button:focus-visible {
   position: fixed; top: 0; left: 0; right: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between;
   padding: 20px 28px;
+  pointer-events: none;
+  transition: opacity 0.9s ease, transform 0.9s ease;
 }
 .brand {
-  display: flex; align-items: center; gap: 10px;
+  pointer-events: auto;
   font-family: "Space Grotesk", sans-serif; font-weight: 500;
   font-size: 17px; letter-spacing: 0.01em; color: var(--ink);
-}
-.brand .dot {
-  width: 9px; height: 9px; border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #fff, var(--accent) 60%, #4a58c8);
-  box-shadow: 0 0 14px var(--accent);
 }
 
 /* ---------- 히어로 ---------- */
 .hero {
   min-height: 100svh;      /* 모바일 주소창이 보여도 한 화면 안에 */
   display: flex; flex-direction: column; justify-content: center;
-  padding-top: 128px; padding-bottom: 96px;
+  --quote: clamp(28px, min(4.17vw, 7.4svh), 96px);     /* 문구가 화면과 함께 커져 어느 폭에서도 행성과 같은 비례를 지키고, 저자·링크도 이 값을 따른다 */
+  padding: 128px 28px 96px max(28px, min(13vw, 35vw - 320px));   /* 왼쪽 여백도 화면 비례 — 큰 화면에선 행성에서 멀어지지 않고, 태블릿에선 행성을 침범하지 않게 */
+  /* 다가가면 문구를 지나친다: 스프링 값(--pass)을 그대로 쓴다 — 별도 전환을 얹으면 손보다 늦게 따라온다 */
+  opacity: calc(1 - var(--pass, 0)); transform: scale(calc(1 + var(--pass, 0) * 0.14)); transform-origin: 72% 46%;
+  transition: opacity 0.9s ease, transform 0.9s ease;
 }
+html.ranging .hero { transition: none; }
 #headline {
   font-family: "Pretendard Variable", "Pretendard", "Space Grotesk", sans-serif;
-  font-weight: 700;
-  font-size: clamp(27px, 4.2vw, 60px);   /* 긴 문구도 2줄 · 행성과 겹치지 않는 크기 */
-  line-height: 1.3; letter-spacing: -0.015em;
+  font-weight: 600;
+  font-size: var(--quote);
+  line-height: 1.32; letter-spacing: -0.022em;
   margin: 0 0 4px;
-  min-height: max(3.9em, calc(2.6em + 50px));  /* 두 줄 + 저자 높이 고정 — 문구가 바뀌어도 버튼이 흔들리지 않게 */
-  opacity: 0; transform: translateY(12px); filter: blur(6px);
-  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(.2,.7,.2,1), filter 0.7s ease;
+  min-height: calc(var(--quote) * 3.1 + 24px);         /* 두 줄 + 저자 높이 고정 — 문구가 바뀌어도 아래가 흔들리지 않게 */
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 0.42s ease-in, transform 0.42s ease-in;     /* 사라질 땐 빠르게 */
 }
-#headline.show { opacity: 1; transform: none; filter: blur(0); }
+#headline.show { opacity: 1; transform: none; transition: opacity 0.9s ease-out, transform 0.9s cubic-bezier(.2,.7,.2,1); }
 #headline .who {
-  display: block; margin-top: 26px;
+  display: block; margin-top: calc(var(--quote) * 0.46);
   font-family: "Space Grotesk", sans-serif; font-weight: 500; font-style: normal;
-  font-size: clamp(12px, 1.1vw, 14px); letter-spacing: 0.2em; text-transform: uppercase;
-  color: var(--faint);
+  font-size: clamp(12px, calc(var(--quote) * 0.24), 18px); letter-spacing: 0.18em; text-transform: uppercase;
+  color: hsl(var(--tint-h) calc(var(--tint-s) * 0.7) 76%);
+  text-shadow: 0 0 2px rgba(3, 6, 16, 0.7), 0 1px 10px rgba(3, 6, 16, 0.85);
 }
 #headline .who::before { content: "— "; }
-#headline .glow {
-  background: linear-gradient(180deg, #ffffff, #cfe6ff 52%, #86b6e6);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  filter: drop-shadow(0 0 36px rgba(120, 180, 255, 0.30));
+#headline h1 { font: inherit; letter-spacing: inherit; margin: 0; }
+#headline .quote-text {
+  color: hsl(var(--tint-h) calc(var(--tint-s) * 0.5) 94%);         /* 단색 — 그라데이션은 한글 받침만 물들인다 */
+  text-shadow: 0 0 2px rgba(3, 6, 16, 0.5), 0 1px 14px rgba(3, 6, 16, 0.6); /* 번지는 빛 대신 받치는 그림자 — 토성 고리나 위성이 뒤를 지나도 읽히게 */
 }
-.cta {
-  display: flex; flex-wrap: wrap; gap: 14px; margin-top: 40px;
+@keyframes rise { to { opacity: 1; transform: translateY(0); } }
+
+/* ---------- 바로가기: 버튼이 아니라 글 — 관심이 생기면 누른다 ---------- */
+.links {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 28px; margin-top: calc(var(--quote) * 0.57);
   opacity: 0; transform: translateY(18px);
   animation: rise 1s 0.8s cubic-bezier(.2,.7,.2,1) forwards;
 }
-.btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 14px 28px; border-radius: 100px;
-  font-size: 14.5px; line-height: 1.25; font-weight: 500; letter-spacing: 0.01em; color: var(--ink);
-  border: 1px solid rgba(150, 175, 220, 0.22);
-  background: rgba(255, 255, 255, 0.045); backdrop-filter: blur(10px);
-  /* --mx/--my: JS가 커서를 향해 설정하는 자석 오프셋 · --press: 눌림 */
-  transform: translate3d(var(--mx, 0px), var(--my, 0px), 0) scale(var(--press, 1));
-  transition: transform 0.26s cubic-bezier(.2,.7,.2,1), border-color 0.28s, box-shadow 0.28s, background 0.28s;
-  will-change: transform;
+.links-rest { display: inline-flex; flex-wrap: wrap; gap: 2px 16px; }
+.link {
+  display: inline-flex; align-items: center; min-height: 26px;      /* 글자는 작아도 누르는 높이는 WCAG 24px 이상 */
+  padding-inline: 5px; margin-inline: -5px;                         /* X처럼 짧은 이름도 누르기 쉽게 */
+  font-size: clamp(13.5px, calc(var(--quote) * 0.225), 16px); line-height: 1.25; color: var(--dim);
+  text-decoration: underline 1px transparent; text-underline-offset: 4px;
+  transition: color 0.25s, text-decoration-color 0.25s;
 }
-.btn::after { content: "↗"; font-size: 13px; opacity: 0.5; transition: transform 0.28s, opacity 0.28s; }
-.btn:active { --press: 0.97; }
-.btn.primary {
-  background: linear-gradient(135deg, #8fccff, #5a8ff0);
-  color: #05101f; border-color: transparent; font-weight: 600; backdrop-filter: none;
-  box-shadow: 0 8px 26px rgba(70, 130, 230, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.45);
-}
-.btn.primary::after { opacity: 0.65; }
+.link.main { color: var(--ink); text-decoration-color: rgba(233, 240, 248, 0.3); } /* 터치에도 보이는 유일한 신호 — 아주 옅은 밑줄 */
 @media (hover: hover) {
-  .btn:hover {
-    border-color: rgba(150, 185, 240, 0.55);
-    background: rgba(255, 255, 255, 0.075); box-shadow: 0 12px 38px rgba(40, 90, 170, 0.30);
-  }
-  .btn:hover::after { transform: translate(2px, -2px); opacity: 0.9; }
-  .btn.primary:hover {
-    border-color: transparent;
-    background: linear-gradient(135deg, #8fccff, #5a8ff0);
-    box-shadow: 0 14px 46px rgba(90, 160, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.55);
-  }
+  .link:hover { color: var(--accent-soft); text-decoration-color: currentColor; }
 }
-
-@keyframes rise { to { opacity: 1; transform: translateY(0); } }
-
-/* ---------- 채널 (허브) ---------- */
-.channels {
-  display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 44px;
-  opacity: 0; transform: translateY(18px);
-  animation: rise 1s 0.95s cubic-bezier(.2,.7,.2,1) forwards;
-}
-.channels-label {
-  font-family: "Space Grotesk", sans-serif; font-size: 11px;
-  letter-spacing: 0.28em; text-transform: uppercase; color: var(--faint);
-}
-.chips { display: flex; flex-wrap: wrap; gap: 9px; }
-.chip {
-  font-size: 12.5px; line-height: 1.25; padding: 7px 14px; border-radius: 100px;
-  border: 1px solid var(--line); color: var(--dim);
-  background: rgba(255,255,255,0.02);
-  transition: color 0.25s, border-color 0.25s, background 0.25s, transform 0.25s;
-}
-.chip:active { transform: scale(0.97); }
-@media (hover: hover) {
-  .chip:hover { color: var(--ink); border-color: var(--accent);
-    background: rgba(124,196,255,0.14); transform: translateY(-1px); }
-}
+.link:focus-visible { outline: 1px solid var(--accent-soft); outline-offset: 3px; border-radius: 2px; }
 
 /* ---------- 미니 푸터 ---------- */
 .mini-foot {
@@ -263,26 +289,25 @@ a:focus-visible, button:focus-visible {
 .mini-foot .credit { opacity: 0.8; }
 .mini-foot .credit a { pointer-events: auto; text-decoration: underline; text-underline-offset: 2px; }
 .mini-foot .credit a:hover { color: var(--accent-soft); }
-@media (max-width: 760px) { .mini-foot { font-size: 10.5px; } }
 
 /* ---------- 반응형 ---------- */
 /* 터치: 작은 조작부를 손가락 크기로 */
 @media (pointer: coarse) {
-  .chip { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; }
+  .link { min-height: 44px; }
   #planet-menu a { padding: 12px 14px; }
+  .menu-kind { padding-inline: 14px; }
 }
 
 @media (max-width: 760px) {
-  .hero { padding-top: 100px; }
-  .cta { gap: 10px; margin-top: 32px; }
-  .btn { flex: 1 1 auto; justify-content: center; padding: 14px 20px; } /* 두 버튼이 본문 폭에 맞춰 한 줄로 */
-  .btn:not(.primary) { background: rgba(8, 13, 26, 0.78); backdrop-filter: none; }
-  .channels { flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 36px; }
-  .chip { color: var(--ink); background: rgba(8, 13, 26, 0.78); } /* 행성 위에서도 읽히게 — 움직이는 캔버스 위 블러는 비싸서 불투명도로 */
-  .mini-foot { left: 20px; bottom: 16px; }
+  .hero { --quote: min(calc((100vw - 56px) / 11.7), 40px); padding: 100px 28px 96px; } /* 가장 긴 줄(11.6em)이 폭 안에 든다 — 어떤 폰에서도 두 줄 */
+  .links { margin-top: 24px; gap: 0 18px; }
+  .links-rest { flex-basis: 100%; gap: 0 14px; }                     /* 좁은 화면은 두 줄: 블로그·깃헙 / 채널 */
+  .link { color: #c4d0de; text-shadow: var(--hud-shadow-strong); }   /* 행성 위에서도 읽히게 */
+  .mini-foot { left: 28px; right: 28px; bottom: 16px; font-size: 10.5px; text-shadow: var(--hud-shadow-strong); } /* 우측 하단 행성과 겹친다 */
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #headline, .cta, .channels { animation: none; opacity: 1; transform: none; filter: none; transition: none; }
+  #headline, .links { animation: none; opacity: 1; transform: none; transition: none; }
   html { scroll-behavior: auto; }
+  body { cursor: auto; }                         /* 움직임을 줄이면 드래그 회전이 꺼진다 */
 }

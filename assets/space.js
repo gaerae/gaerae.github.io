@@ -5,8 +5,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
-import { BODIES, chooseBody } from 'app/bodies.js';
+import { chooseBody, FIXED_WORLD } from 'app/bodies.js';
+import { createCraft, SampledPass } from 'app/craft.js';
 import { initPlanetPicker } from 'app/picker.js';
+import { createZoom } from 'app/zoom.js';
 
 /* ------------------------------------------------------------------ *
  *  gaerae.com — 우주 항해 랜딩 (Three.js / WebGL)
@@ -14,6 +16,8 @@ import { initPlanetPicker } from 'app/picker.js';
  * ------------------------------------------------------------------ */
 
 const canvas = document.getElementById('space');
+const rootEl = document.documentElement;
+const heroEl = document.querySelector('.hero');
 let renderer;
 try {
   // 그림은 전부 컴포저의 오프스크린 타깃에 그려져 캔버스 MSAA는 효과가 없다 — 구 가장자리는 셰이더(EDGE_AA)가 처리
@@ -34,13 +38,15 @@ renderer.toneMappingExposure = 1.12;
 
 const scene = new THREE.Scene();
 const FOV = 68;
+const TAN_HALF_FOV = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+const halfHeightAt = (z) => TAN_HALF_FOV * Math.abs(z);   // 깊이 z 평면에서 화면 절반 높이
 const camera = new THREE.PerspectiveCamera(FOV, window.innerWidth / window.innerHeight, 0.1, 8000);
 // 행성 전용 망원 카메라: 광각으로 화면 가장자리에 둔 구는 방사 방향으로 1/cosθ 늘어나 타원이 된다.
 // LENS_K 배 물러나고 그만큼 화각을 좁혀 화면 위치·크기는 그대로 두고 진짜 원으로 그린다.
 const LENS_K = 3;
 const planetScene = new THREE.Scene();
 const planetCam = new THREE.PerspectiveCamera(
-  2 * THREE.MathUtils.radToDeg(Math.atan(Math.tan(THREE.MathUtils.degToRad(FOV / 2)) / LENS_K)),
+  2 * THREE.MathUtils.radToDeg(Math.atan(TAN_HALF_FOV / LENS_K)),
   camera.aspect, 10, 20000
 );
 const clock = new THREE.Clock();
@@ -323,10 +329,10 @@ for (let i = 0; i < NCOMET; i++) resetComet(i, true);
 const rnd = (a, b) => a + Math.random() * (b - a);
 
 const TEX = 'assets/textures/';
-const TEX_VER = '81f7478523';          // 텍스처 캐시 버스팅 — scripts/version.mjs 가 갱신
+const ASSET_VER = '09cd4a7649';        // 텍스처·3D 모델 캐시 버스팅 — scripts/version.mjs 가 갱신
 const body = chooseBody();
 
-const sizeVar = rnd(0.85, 1.12);      // 개체마다 크기도 조금씩 다르게
+const sizeVar = rnd(0.85, 1.12) * (body.hero ?? 1); // 개체마다 크기도 조금씩 다르게
 
 const R = 420;
 const oblY = 1 - (body.obl || 0);     // 편평도: 자전축(Y) 방향으로 눌러 적도가 부풀게
@@ -343,41 +349,73 @@ if (body.sideways) {                  // 천왕성: 거의 옆으로 누운 자�
 }
 planetGroup.rotation.z = rotZ;
 planetGroup.rotation.x = restX;
-// 화면 비율에 맞춰 배치: 데스크톱은 크게 잘려 웅장하게, 모바일은 우측에서 살짝 걸치게
-let planetBaseY = 255;
-function layoutPlanet() {
+const focus = { on: rootEl.classList.contains('focus'), ease: 0 };
+if (focus.on) focus.ease = 1;
+const layoutTo = { x: 0, y: 0, z: 0, scale: 1 };
+let layoutNow = null;
+// 집중 모드 구도: 행성을 작게, 황금비 위치에 — 왼쪽에서 오는 빛이 빈 우주 쪽을 향한다. 세로 화면은 아래쪽 중앙
+const FOCUS_DIAMETER = 0.38;          // 화면 높이 대비 행성 지름(텍스처가 1배 안팎으로 유지되는 크기)
+const FOCUS_SUN = new THREE.Vector3(-0.80, 0.34, 0.40).normalize(); // 비스듬한 측광 — 명암 경계가 둥글게 휘고 고리 그림자가 살아난다
+const FOCUS_DRIFT_SECONDS = 40;       // 천천히 다가가는 카메라
+function focusLayout(z) {
+  const halfH = halfHeightAt(z), halfW = halfH * camera.aspect, portrait = camera.aspect < 1;
+  const span = body.ring?.tex ? body.ring.outer : 1;           // 고리까지 합친 반지름
+  const fill = body.craft ? (portrait ? 0.9 : 0.46) / body.size
+    : portrait ? Math.min(0.62, 0.92 / span) : Math.min(FOCUS_DIAMETER, 0.72 / span);
+  return { x: portrait ? 0 : 0.236 * halfW, y: (portrait ? -0.10 : -0.04) * halfH, scale: fill * (portrait ? halfW : halfH) / R };
+}
+// 기본 구도: 데스크톱은 크게 잘려 웅장하게, 모바일은 우측에서 살짝 걸치게
+function heroLayout() {
   const w = window.innerWidth;
   if (w < 760) {
     // 모바일: 화면 비율 기준으로 본문 아래 우측에 — 세로 화면에서도 밀려나지 않게
-    const halfH = Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * 1440;  // z=-1440 평면의 화면 절반 높이
-    planetGroup.position.set(0.62 * halfH * camera.aspect, -0.60 * halfH, -1440);
-    planetGroup.scale.setScalar(0.64 * sizeVar);
-  } else if (w < 1180) {
-    // 중간 폭(노트북·태블릿 가로): 안쪽으로 당기고 살짝 축소 — 화면 밖으로 잘려나가 사라지지 않게
-    planetGroup.position.set(560, 225, -1500);
-    planetGroup.scale.setScalar(0.72 * sizeVar);
-  } else {
-    planetGroup.position.set(880, 255, -1430);
-    planetGroup.scale.setScalar(1 * sizeVar);
+    const z = -1440, halfH = halfHeightAt(z), halfW = halfH * camera.aspect;
+    return { x: (body.craft ? 0.2 : 0.62) * halfW, y: -0.60 * halfH, z, scale: body.craft ? 0.8 * halfW / (R * body.size) : 0.64 * sizeVar };
   }
-  planetBaseY = planetGroup.position.y;
-  planetCam.position.z = -planetGroup.position.z * (LENS_K - 1);
+  // 중간 폭(노트북·태블릿 가로): 안쪽으로 당기고 살짝 축소 — 화면 밖으로 잘려나가 사라지지 않게
+  if (w < 1180) return { x: 560, y: 225, z: -1500, scale: 0.72 * sizeVar };
+  return { x: 880, y: 255, z: -1430, scale: sizeVar };
+}
+function layoutPlanet() {
+  const hero = heroLayout();
+  Object.assign(layoutTo, hero, focus.on ? focusLayout(hero.z) : null);
+  if (REDUCE || !layoutNow) layoutNow = { ...layoutTo };       // 움직임을 줄인 환경은 미끄러지지 않고 바로 옮긴다
+  planetGroup.position.set(layoutNow.x, layoutNow.y, layoutTo.z);
+  planetGroup.scale.setScalar(layoutNow.scale);
+  planetCam.position.z = -layoutTo.z * (LENS_K - 1);
 }
 layoutPlanet();
 planetScene.add(planetGroup);
 
 const sunDir = SKY.sunDir.clone();
 const sunAim = new THREE.Vector3(); // 커서 반응용 태양 방향(프레임마다 재계산)
+const sunBase = new THREE.Vector3();
 
 const texLoader = new THREE.TextureLoader();
 const anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 // 정지 상태(reduce·렌더 멈춤)에서 늦게 도착한 텍스처도 화면에 반영
 const renderIfPaused = () => { if (!running && !contextLost && !document.hidden) composer.render(); };
 function loadTex(file, { srgb = true, onLoad } = {}) {
-  const t = texLoader.load(`${TEX}${file}?v=${TEX_VER}`, () => { onLoad?.(); renderIfPaused(); });
+  const t = texLoader.load(`${TEX}${file}?v=${ASSET_VER}`, () => { onLoad?.(); renderIfPaused(); });
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = anisotropy;
   return t;
+}
+
+// 문구가 천체의 빛을 조금 받는다: 표면 평균색의 색상·채도를 잉크에 옮긴다
+function tintQuote(image) {
+  const canvas = Object.assign(document.createElement('canvas'), { width: 32, height: 16 });
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(image, 0, 0, 32, 16);
+  const px = ctx.getImageData(0, 0, 32, 16).data, sum = [0, 0, 0];
+  for (let i = 0; i < px.length; i += 4) for (let c = 0; c < 3; c++) sum[c] += px[i + c];
+  const count = px.length / 4 * 255;
+  const tone = rgb => new THREE.Color().setRGB(...rgb, THREE.SRGBColorSpace).getHSL({}, THREE.SRGBColorSpace);
+  let { h, s } = tone(sum.map(v => v / count));
+  const air = body.haze || body.atmo?.col;           // 회색 지도(타이탄·명왕성·유로파)는 눈에 보이는 대기색을 쓴다
+  if (s < 0.08 && air) ({ h, s } = tone(air));
+  rootEl.style.setProperty('--tint-h', (h * 360).toFixed(0));
+  rootEl.style.setProperty('--tint-s', `${(Math.min(s, 0.6) * 100).toFixed(0)}%`);
 }
 
 // 페이드인: 표면 텍스처 로드 후 등록된 불투명도 유니폼을 함께 1까지 올린다
@@ -388,6 +426,10 @@ function fadeUniform(rate = 1.5) {
   fades.push({ u, rate });
   return u;
 }
+
+// 천체마다 다른 층(태양 원반·구름·대기·위성·우주선)이 매 프레임 할 일을 등록한다
+const frameLayers = [];
+const onFrame = (update) => frameLayers.push(update);
 
 // 표면·구름·위성 공용 정점 셰이더(월드 법선·시선 방향 전달)
 const SURFACE_VERT = /* glsl */`
@@ -402,6 +444,11 @@ const SURFACE_VERT = /* glsl */`
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }`;
 
+// 화면 공간 판 공용 정점 셰이더
+const UV_VERT = /* glsl */`
+  varying vec2 vUv;
+  void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+
 // 구 실루엣 안티앨리어싱: 시선과 법선의 내적이 0으로 떨어지는 마지막 1픽셀을 투명하게 푼다
 const EDGE_AA = /* glsl */`
   float edgeAA(float vd){ return clamp(vd / max(fwidth(vd), 1e-4), 0.0, 1.0); }`;
@@ -415,7 +462,7 @@ const PLANET_SHADOW = /* glsl */`
   }`;
 
 // ── 표면: 실제 천체 텍스처(알베도)를 시네마틱 명암으로 조명 ──
-const planetTex = loadTex(body.tex, { onLoad: () => { planetFadeIn = !REDUCE; } });
+const planetTex = body.craft ? new THREE.Texture() : loadTex(body.tex, { onLoad: () => { planetFadeIn = !REDUCE; tintQuote(planetTex.image); } });
 // 지구 전용 보조 맵: 야간 도시광(발광) · 해양 반사 마스크 — 없는 천체는 더미(planetTex)+플래그 0으로 무시
 const hasNight = !!body.night, hasSpec = !!body.spec;
 const nightTex = hasNight ? loadTex(body.night) : planetTex;
@@ -429,6 +476,7 @@ const planetUniforms = {
   uRingIn: { value: body.ring?.inner || 0 }, uRingOut: { value: body.ring?.outer || 1 },
   uMoonSpheres: { value: moonSpheres },
   uSun: { value: sunDir.clone() },
+  uGlint: { value: 0.34 },                                      // 바다 반사 세기
   uOpacity: fadeUniform(1.8),
   uMap: { value: planetTex },
   uNightMap: { value: nightTex }, uSpecMap: { value: specTex },
@@ -441,7 +489,7 @@ const planetUniforms = {
   uHazeAmt: { value: body.haze ? 0.72 : 0.0 },
 };
 const planet = new THREE.Mesh(
-  new THREE.SphereGeometry(R, 160, 160),
+  body.disc || body.craft ? new THREE.BufferGeometry() : new THREE.SphereGeometry(R, 160, 160), // 태양·우주선은 구를 그리지 않는다
   new THREE.ShaderMaterial({
     transparent: true,
     defines: { MOON_COUNT: moonSpheres.length, ...(ringTex && { RING_SHADOW: 1 }) },
@@ -451,7 +499,7 @@ const planet = new THREE.Mesh(
       precision highp float;
       varying vec2 vT; varying vec3 vWN; varying vec3 vVD; varying vec3 vWP;
       uniform sampler2D uMap, uNightMap, uSpecMap; uniform vec3 uSun, uRim, uHaze;
-      uniform float uOpacity, uNight, uAtmoPow, uHazeAmt, uHasNight, uHasSpec, uLum;
+      uniform float uOpacity, uNight, uAtmoPow, uHazeAmt, uHasNight, uHasSpec, uLum, uGlint;
       ${EDGE_AA}
       #if MOON_COUNT > 0
       uniform vec4 uMoonSpheres[MOON_COUNT];
@@ -504,8 +552,8 @@ const planet = new THREE.Mesh(
         if (uHasSpec > 0.5) {
           float ocean = texture2D(uSpecMap, vT).r;
           vec3 Hh = normalize(normalize(uSun) + normalize(vVD));
-          float sp = pow(max(dot(N, Hh), 0.0), 64.0);
-          lit += vec3(1.0, 0.97, 0.90) * sp * ocean * day * 1.15;
+          float sp = pow(max(dot(N, Hh), 0.0), 180.0);
+          lit += vec3(1.0, 0.97, 0.90) * sp * ocean * day * uGlint;
         }
         float fres = pow(1.0 - vd, 3.0);
         lit += uRim * fres * day * uAtmoPow;                     // 햇빛 받는 가장자리 대기 산란
@@ -519,10 +567,46 @@ planet.scale.set(1, oblY, 1);        // 편평도(가스/얼음행성은 적도�
 planet.rotation.y = body.face || 0;  // 대표 지형을 향한 시작 경도
 planetGroup.add(planet);
 
+// ── 태양: SDO 사진은 한쪽 면뿐이라 카메라를 향한 판에 그린다. 코로나는 더해지고 원반은 뒤의 별을 가린다 ──
+if (body.disc) {
+  const DISC_TURN_MAX = 0.42;                                   // 사진에 없는 뒷면이 드러나기 전에 멈추는 각도(rad)
+  const discTurn = { value: new THREE.Vector2() };              // 드래그를 받아 사진을 구면 위에서 돌린다
+  planet.visible = false;
+  const sunDisc = new THREE.Mesh(new THREE.PlaneGeometry(R / body.disc, R / body.disc), new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, depthTest: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    uniforms: { uMap: { value: planetTex }, uDisc: { value: body.disc }, uOpacity: planetUniforms.uOpacity, uTurn: discTurn },
+    vertexShader: UV_VERT,
+    fragmentShader: /* glsl */`
+      precision highp float;
+      varying vec2 vUv; uniform sampler2D uMap; uniform float uDisc, uOpacity; uniform vec2 uTurn;
+      void main(){
+        vec2 p = (vUv - 0.5) / uDisc;
+        float r = length(p);
+        vec2 at = vUv;
+        if (r < 1.0) {
+          vec3 n = vec3(p, sqrt(1.0 - r * r));
+          float cy = cos(uTurn.x), sy = sin(uTurn.x), cx = cos(uTurn.y), sx = sin(uTurn.y);
+          n = vec3(n.x * cy - n.z * sy, n.y, n.x * sy + n.z * cy);
+          n = vec3(n.x, n.y * cx + n.z * sx, n.z * cx - n.y * sx);
+          at = n.xy * uDisc + 0.5;
+        }
+        vec3 c = max(texture2D(uMap, at).rgb - 0.006, 0.0) * 1.15;
+        float inside = 1.0 - smoothstep(0.985, 1.0, r);
+        float outside = 1.0 - smoothstep(1.06, 1.15, r);
+        gl_FragColor = vec4(c * mix(outside, 1.0, inside) * uOpacity, inside * uOpacity);
+      }`,
+  }));
+  planetGroup.add(sunDisc);
+  onFrame(() => {
+    sunDisc.quaternion.copy(planetGroup.quaternion).invert();
+    discTurn.value.set(Math.tanh(planetGroup.rotation.y / DISC_TURN_MAX), Math.tanh(planetGroup.rotation.x / DISC_TURN_MAX)).multiplyScalar(DISC_TURN_MAX);
+  });
+}
+
 // ── 구름층(지구): 지표보다 약간 빠르게 도는 반투명 구름 — 낮면만 밝게, 밤면은 어둑 ──
-let clouds = null;
 if (body.clouds) {
-  clouds = new THREE.Mesh(
+  const clouds = new THREE.Mesh(
     new THREE.SphereGeometry(R * 1.015, 128, 128),
     new THREE.ShaderMaterial({
       transparent: true, depthWrite: false,
@@ -547,6 +631,7 @@ if (body.clouds) {
   clouds.scale.set(1, oblY, 1);
   clouds.renderOrder = 1;              // 표면 위, 대기 림 아래
   planetGroup.add(clouds);
+  onFrame((dt) => { clouds.rotation.y += dt * body.spin * 1.25; }); // 구름이 지표보다 약간 빠르게 흘러감
 }
 
 // 실측 고리 데이터를 반지름 방향 1D 텍스처로 굽는다 — R: 고리 밀도, G: 해왕성 아크. 밉맵이 가는 고리의 깜빡임을 없앤다
@@ -572,7 +657,6 @@ function bakeRingProfile({ inner, outer, bands, arcs }) {
 }
 
 // ── 고리: 토성=실측 텍스처, 그 외 거대행성=실측 반지름으로 구운 희미한 고리 ──
-let ring = null;
 if (body.ring) {
   const inner = R * body.ring.inner, outer = R * body.ring.outer;
   const rg = new THREE.RingGeometry(inner, outer, 240, 1);
@@ -647,17 +731,27 @@ if (body.ring) {
         }`,
     });
   }
-  ring = new THREE.Mesh(rg, ringMat);
+  const ring = new THREE.Mesh(rg, ringMat);
   ring.rotation.x = Math.PI * 0.5;
   ring.renderOrder = 1;
   planetGroup.add(ring);
 }
 
+let craft = null;
+if (body.craft) {
+  planet.visible = false;
+  craft = createCraft({
+    body, renderer, scene: planetScene, parent: planetGroup, radius: R * body.size, envSun: FOCUS_SUN,
+    url: `assets/craft/${body.craft}?v=${ASSET_VER}`, reduced: REDUCE, fade: fadeUniform(0.8),
+    onReady() { planetFadeIn = !REDUCE; renderIfPaused(); },
+  });
+  onFrame((dt, et) => craft.update(et));
+}
+
 // 대기 림 — 행성 가장자리에서 가장 밝고 껍질 끝으로 갈수록 사라진다. 대기가 없는 천체는 atmo: null
 const ATMO_SCALE = 1.08;              // 대기 껍질 반지름(행성 반지름 대비)
-let atmo = null;
 if (body.atmo) {
-  atmo = new THREE.Mesh(
+  const atmo = new THREE.Mesh(
     new THREE.SphereGeometry(R * ATMO_SCALE, 96, 96),
     new THREE.ShaderMaterial({
       side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
@@ -698,6 +792,11 @@ if (body.atmo) {
   );
   planetGroup.add(atmo);
   atmo.renderOrder = -1;               // 행성보다 먼저 — 가장자리 안티앨리어싱 픽셀이 대기와 섞이게
+  onFrame((dt, et) => {                // 숨쉬는 대기(편평도 유지)
+    const sc = 1.0 + Math.sin(et * 0.5) * 0.014;
+    atmo.scale.set(sc, sc * oblY, sc);
+    atmo.material.uniforms.uInner.value = 1 / (ATMO_SCALE * sc);
+  });
 }
 
 // ── 위성: 그 천체의 실제 위성만, 적도면 궤도를 돈다 ──
@@ -741,16 +840,20 @@ function placeMoon(m) {
   m.mesh.rotation.y = Math.PI - m.ang;                 // 조석 고정 — 같은 면이 늘 행성을 향한다
 }
 moons.forEach(placeMoon);
+if (moons.length) onFrame((dt) => {
+  for (const m of moons) {
+    m.ang += dt * m.speed;
+    placeMoon(m);
+  }
+});
 
 /* ============================================================
  *  4. 후처리 (은은한 Bloom)
  * ============================================================ */
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const planetPass = new RenderPass(planetScene, planetCam); // 배경·별 위에 행성을 덧그림
-planetPass.clear = false;
-planetPass.clearDepth = true;
-composer.addPass(planetPass);
+// 배경·별 위에 행성을 덧그림
+composer.addPass(body.craft ? new SampledPass(planetScene, planetCam) : Object.assign(new RenderPass(planetScene, planetCam), { clear: false, clearDepth: true }));
 const bloom = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
   0.32,  // strength — 은은하게(행성 표면이 하얗게 번지지 않도록)
@@ -767,10 +870,7 @@ const grade = new ShaderPass({
     uAberration: { value: 0.0006 },
     uGrain: { value: 0.010 },
   },
-  vertexShader: /* glsl */`
-    varying vec2 vUv;
-    void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
-  `,
+  vertexShader: UV_VERT,
   fragmentShader: /* glsl */`
     varying vec2 vUv;
     uniform sampler2D tDiffuse; uniform float uTime; uniform float uAberration; uniform float uGrain;
@@ -830,42 +930,76 @@ window.addEventListener('pointermove', (e) => {
   if (!dragging) return;
   const dx = e.clientX - dragLX, dy = e.clientY - dragLY;
   dragLX = e.clientX; dragLY = e.clientY;
-  velY = dx * 0.006; velX = dy * 0.006;
+  velY = dx * 0.006 / zoom.now; velX = dy * 0.006 / zoom.now;    // 가까이 볼수록 표면이 손가락을 따라오게
   planetGroup.rotation.y += velY;
   planetGroup.rotation.x = clampTilt(planetGroup.rotation.x + velX);
 });
 
-// 워프 투 이동: 떠나는 순간 별이 가속 → 플래시 후 이동(같은 탭) — 블로그·GitHub 버튼
+const TEX_STRETCH_MAX = 1.6;   // 텍스처 한 칸이 화면 몇 픽셀로 늘어나도 되는가 — 이보다 크면 표면이 뭉개진다
+const RANGE_SHOW_MS = 2600;
+const distanceEl = document.getElementById('distance');
+let rangeTimer, lastDistance = '', lastPass = '';
+let ranging = false;
+// 문구의 scale은 레이아웃에 잡히지 않는다 — scrollHeight로 재면 확대 중에 페이지가 길어진 것으로 착각해 휠을 놓친다
+const canScrollPage = () => document.body.offsetHeight > window.innerHeight + 4;
+const markPageFit = () => rootEl.classList.toggle('fits', !canScrollPage());
+addEventListener('resize', markPageFit);
+markPageFit();
+// 화면 가운데의 늘어남은 π·지름(px)/텍스처 폭 — 텍스처와 화면 해상도가 정하는 데까지만 다가간다
+function fitZoomLimit() {
+  if (body.craft || body.disc) return;
+  const diameterPx = layoutTo.scale * R / halfHeightAt(planetGroup.position.z) * renderer.domElement.height;
+  const texWidth = planetTex.image?.width || 2048;
+  zoom.max = Math.log(THREE.MathUtils.clamp(TEX_STRETCH_MAX * texWidth / (Math.PI * diameterPx), 1.15, 1.8));
+}
+const zoom = createZoom({
+  max: Math.log(body.craft ? 3 : 1.8),
+  reduced: REDUCE, isInteractive, canScrollPage,
+  onPinchStart: endDrag,
+  onInput() {
+    fitZoomLimit();
+    ranging = true;
+    rootEl.classList.add('ranging');
+    clearTimeout(rangeTimer);
+    rangeTimer = setTimeout(() => { ranging = false; rootEl.classList.remove('ranging'); }, RANGE_SHOW_MS);
+    wake();
+    if (focus.on) armCycle();                               // 들여다보는 중엔 다음 천체로 넘어가지 않는다
+    renderStill();
+  },
+});
+function stepZoom(dt) {
+  zoom.step(dt);
+  const pass = THREE.MathUtils.smoothstep(zoom.x, 0.05, 0.3);   // 문구를 지나쳐 앞으로 나아간다
+  const text = pass.toFixed(3);
+  if (text === lastPass) return;
+  lastPass = text;
+  heroEl.style.setProperty('--pass', text);
+  rootEl.classList.toggle('zoomed', pass > 0.5);
+  syncHidden();
+}
+// 화면에 보이는 크기와 시야각으로 계산한 실제 거리
+function showDistance() {
+  const reach = R * (body.size || 1) * planetGroup.scale.x / Math.abs(planetGroup.position.z);
+  const km = body.km * Math.sqrt(1 + 1 / (reach * reach));
+  const digits = 10 ** Math.max(0, Math.floor(Math.log10(km)) - 2);
+  const text = km < 1 ? `${Math.round(km * 100) * 10} m` : `${(Math.round(km / digits) * digits).toLocaleString('en-US')} km`;
+  if (text !== lastDistance) distanceEl.textContent = lastDistance = text;
+}
+
+// 워프 투 이동: 떠나는 순간 별이 가속 → 플래시 후 이동(같은 탭) — 블로그·GitHub 링크
 let departing = false;
 function warpDepart(url) {
   departing = true;
   document.body.classList.add('departing');
   setTimeout(() => { window.location.href = url; }, 650);
 }
-document.querySelectorAll('.cta .btn').forEach((b) => {
-  b.addEventListener('click', (e) => {
+document.querySelectorAll('.link.main').forEach((link) => {
+  link.addEventListener('click', (e) => {
     if (REDUCE || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // 새 탭/수정키는 기본 동작
     e.preventDefault();
-    warpDepart(b.href);
+    warpDepart(link.href);
   });
 });
-
-// 자석 버튼: 커서를 향해 미세하게 끌려오며 살짝 떠오름 (마우스 사용·모션 허용 시만)
-if (!REDUCE && matchMedia('(pointer: fine)').matches) {
-  document.querySelectorAll('.cta .btn').forEach((b) => {
-    b.addEventListener('pointermove', (e) => {
-      const r = b.getBoundingClientRect();
-      const ox = e.clientX - (r.left + r.width / 2);
-      const oy = e.clientY - (r.top + r.height / 2);
-      b.style.setProperty('--mx', (ox * 0.22).toFixed(1) + 'px');
-      b.style.setProperty('--my', (oy * 0.22 - 3).toFixed(1) + 'px'); // -3: 커서 위에서 살짝 떠오름
-    });
-    b.addEventListener('pointerleave', () => {
-      b.style.setProperty('--mx', '0px');
-      b.style.setProperty('--my', '0px');
-    });
-  });
-}
 
 // 뒤로가기(bfcache) 복원 시 플래시·워프 상태 초기화 (밝은 화면 잔상 방지)
 window.addEventListener('pageshow', () => {
@@ -874,17 +1008,89 @@ window.addEventListener('pageshow', () => {
   warp = 1; warpTarget = 1;
 });
 
-initPlanetPicker(BODIES, body);
+initPlanetPicker(body);
+
+// 집중 모드: 글을 걷고 천체만 남긴 채 일정 주기로 다음 천체로 넘어간다
+const FOCUS_CYCLE_MS = 40000;
+const FOCUS_FADE_MS = 1100;
+const FOCUS_IDLE_MS = 2800;
+const KEY_SPIN = 0.014;                                        // 방향키 한 번의 회전 속도(rad/프레임)
+const ROTATE_KEYS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+const focusToggle = document.getElementById('focus-toggle');
+const focusText = focusToggle.querySelector('span');
+const planetMenu = document.getElementById('planet-menu');
+const brandNav = document.getElementById('nav');
+let cycleTimer, idleTimer;
+function nextWorld() {
+  rootEl.classList.add('leaving');
+  setTimeout(() => (FIXED_WORLD ? location.assign('/') : location.reload()), FOCUS_FADE_MS); // 셔플 백이 다음 천체를 고른다
+}
+function cycleWorld() {                                        // 안 보는 탭이거나 손대는 중이면 이번 주기는 넘긴다
+  if (document.hidden || dragging || !planetMenu.hidden) armCycle();
+  else nextWorld();
+}
+function armCycle() {
+  clearTimeout(cycleTimer);
+  if (!REDUCE) cycleTimer = setTimeout(cycleWorld, FOCUS_CYCLE_MS);
+}
+function wake() {
+  rootEl.classList.remove('idle');
+  clearTimeout(idleTimer);
+  if (focus.on) idleTimer = setTimeout(() => {
+    if (planetMenu.hidden) rootEl.classList.add('idle');
+  }, FOCUS_IDLE_MS);
+}
+// 사라진 글은 키보드·스크린리더에서도 빠진다
+function syncHidden() {
+  heroEl.inert = focus.on || rootEl.classList.contains('zoomed');
+  brandNav.inert = focus.on;
+}
+function setFocus(on) {
+  focus.on = on;
+  rootEl.classList.toggle('focus', on);
+  try { on ? sessionStorage.setItem('gaerae.focus', '1') : sessionStorage.removeItem('gaerae.focus'); } catch {}
+  focusToggle.setAttribute('aria-pressed', String(on));
+  focusText.textContent = on ? 'Exit' : 'Focus';
+  if (REDUCE) focus.ease = on ? 1 : 0;
+  layoutPlanet();
+  syncHidden();
+  clearTimeout(cycleTimer);
+  if (on) armCycle();
+  wake();
+  renderStill();
+}
+focusToggle.addEventListener('click', () => setFocus(!focus.on));
+addEventListener('pointermove', wake, { passive: true });
+addEventListener('pointerdown', wake, { passive: true });
+addEventListener('keydown', (e) => {
+  wake();
+  if (e.metaKey || e.ctrlKey || e.altKey) return;              // Cmd+F 같은 브라우저 단축키는 건드리지 않는다
+  const turn = ROTATE_KEYS[e.key];
+  if (turn) {
+    if (REDUCE || !planetMenu.hidden || (turn[1] && canScrollPage())) return;
+    velY = turn[0] * KEY_SPIN; velX = turn[1] * KEY_SPIN;
+    return;
+  }
+  if (e.repeat) return;
+  if (e.code === 'KeyF') setFocus(!focus.on);                  // code — 한글 자판에서도 같은 키
+  else if (e.code === 'KeyN' && focus.on) { clearTimeout(cycleTimer); nextWorld(); }
+  else if (e.key === 'Escape' && planetMenu.hidden) {
+    if (zoom.want !== 0) zoom.to(0);
+    else if (focus.on) setFocus(false);
+  }
+});
 
 /* ============================================================
  *  6. 렌더 루프
  * ============================================================ */
 function updateStars(dt) {
-  const speedScale = REDUCE ? 0 : warp;
+  const calm = 1 - 0.82 * focus.ease;                           // 집중 모드: 별이 천천히 흐른다
+  const speedScale = REDUCE ? 0 : warp * calm + zoom.v * 4;      // 다가가면 별이 스쳐 지나가고, 물러나면 멀어진다
   for (let i = 0; i < STAR_COUNT; i++) {
     starZ[i] += starSpeed[i] * speedScale * dt;
     if (!REDUCE && starZ[i] > 60) spawnStar(i, false);
-    const streak = REDUCE ? 2.0 : Math.min(starSpeed[i] * warp * dt * 3.2, departing ? 1600 : 90); // 짧고 부드러운 꼬리
+    else if (starZ[i] < -DEPTH) { spawnStar(i, false); starZ[i] = -rnd(0, 200); }  // 물러날 때는 앞쪽에서 새 별이 들어온다
+    const streak = REDUCE ? 2.0 : Math.min(starSpeed[i] * Math.abs(speedScale) * dt * 3.2, departing ? 1600 : 90) * Math.sign(speedScale || 1); // 짧고 부드러운 꼬리
     const o = i * 6;
     positions[o + 2] = starZ[i];
     positions[o + 5] = starZ[i] - streak;
@@ -920,37 +1126,51 @@ function updateComets(dt) {
   }
 }
 
-function updatePlanet(dt, et) {
+function updateSpin(dt) {
   planet.rotation.y += dt * body.spin;                          // 자전(메시에 적용 → 고리/자세 그룹과 분리)
-  if (!dragging) {                                              // 드래그 관성 + 커서를 향한 은은한 기울임
-    const frames = dt * 60;                                     // 화면 주사율과 무관하게 같은 관성
-    planetGroup.rotation.y += velY * frames;
-    planetGroup.rotation.x = clampTilt(planetGroup.rotation.x + velX * frames);
-    const damping = Math.pow(0.94, frames);
-    velY *= damping; velX *= damping;
-    const aimY = mouse.x * 0.26;                                // 커서 쪽으로 살짝 바라봄(±~8°)
-    const aimX = restX - mouse.y * 0.12;                        // 커서 상하에 따라 미세 끄덕임
-    planetGroup.rotation.y += (aimY - planetGroup.rotation.y) * dt * 0.9;
-    planetGroup.rotation.x += (aimX - planetGroup.rotation.x) * dt * 0.9;
-  }
-  planetGroup.position.y = planetBaseY + Math.sin(et * 0.4) * 7; // 미세한 부유
-  if (atmo) {                                                   // 숨쉬는 대기(편평도 유지)
-    const sc = 1.0 + Math.sin(et * 0.5) * 0.014;
-    atmo.scale.set(sc, sc * oblY, sc);
-    atmo.material.uniforms.uInner.value = 1 / (ATMO_SCALE * sc);
-  }
-  if (planetFadeIn) for (const f of fades) f.u.value = Math.min(1, f.u.value + dt * f.rate);
-  if (clouds) clouds.rotation.y += dt * body.spin * 1.25;       // 구름이 지표보다 약간 빠르게 흘러감
-  for (const m of moons) {
-    m.ang += dt * m.speed;
-    placeMoon(m);
-  }
+  if (dragging) return;
+  const frames = dt * 60;                                       // 화면 주사율과 무관하게 같은 관성
+  planetGroup.rotation.y += velY * frames;                      // 드래그 관성 + 커서를 향한 은은한 기울임
+  planetGroup.rotation.x = clampTilt(planetGroup.rotation.x + velX * frames);
+  const damping = Math.pow(0.94, frames);
+  velY *= damping; velX *= damping;
+  const aimY = mouse.x * 0.26;                                  // 커서 쪽으로 살짝 바라봄(±~8°)
+  const aimX = restX - mouse.y * 0.12;                          // 커서 상하에 따라 미세 끄덕임
+  planetGroup.rotation.y += (aimY - planetGroup.rotation.y) * dt * 0.9;
+  planetGroup.rotation.x += (aimX - planetGroup.rotation.x) * dt * 0.9;
+}
+
+const LAYOUT_RATE = 1.5;                                        // 일반 ↔ 집중 위치 전환 속도
+function updateFraming(dt, et) {
+  const { damp, smoothstep } = THREE.MathUtils;
+  layoutNow.x = damp(layoutNow.x, layoutTo.x, LAYOUT_RATE, dt);
+  layoutNow.y = damp(layoutNow.y, layoutTo.y, LAYOUT_RATE, dt);
+  layoutNow.scale = damp(layoutNow.scale, layoutTo.scale, LAYOUT_RATE, dt);
+  focus.ease = damp(focus.ease, focus.on ? 1 : 0, LAYOUT_RATE, dt);
+  const drift = REDUCE ? 0 : focus.ease * Math.min(et / FOCUS_DRIFT_SECONDS, 1); // 집중 모드: 40초에 걸쳐 살짝 다가간다
+  const near = smoothstep(zoom.x, 0, Math.log(1.7));            // 다가갈수록 화면 가운데로
+  planetGroup.position.x = (layoutNow.x - drift * 26) * (1 - near);
+  planetGroup.position.y = (layoutNow.y + Math.sin(et * 0.4) * 7) * (1 - near);
+  planetGroup.scale.setScalar(layoutNow.scale * (1 + drift * 0.06) * zoom.now);
+}
+
+function updateWarp(dt) {
   if (departing) {
     warp += (120 - warp) * dt * 2.5;                            // 떠남: 워프 가속
   } else {
     warpTarget += (1 - warpTarget) * dt * 1.6;
     warp += (warpTarget - warp) * dt * 4.0;
   }
+}
+
+function updatePlanet(dt, et) {
+  updateSpin(dt);
+  stepZoom(dt);
+  updateFraming(dt, et);
+  if (ranging) showDistance();
+  if (planetFadeIn) for (const f of fades) f.u.value = Math.min(1, f.u.value + dt * f.rate);
+  for (const update of frameLayers) update(dt, et);
+  updateWarp(dt);
 }
 
 function updateParallax(dt) {
@@ -964,8 +1184,11 @@ function updateParallax(dt) {
   planetCam.position.y = camera.position.y;
   planetCam.rotation.set(camera.rotation.x / LENS_K, camera.rotation.y / LENS_K, 0);
   // 커서를 따라 태양 방향 미세 이동 → 명암 경계(터미네이터)가 흐르며 입체감↑
-  sunAim.set(sunDir.x + mouse.x * 0.22, sunDir.y - mouse.y * 0.14, sunDir.z).normalize();
+  sunBase.copy(sunDir).lerp(FOCUS_SUN, body.craft ? 1 : focus.ease);
+  sunAim.set(sunBase.x + mouse.x * 0.22, sunBase.y - mouse.y * 0.14, sunBase.z).normalize();
   planetUniforms.uSun.value.copy(sunAim);
+  craft?.aimSun(sunAim);
+  planetUniforms.uGlint.value = 0.34 - 0.12 * focus.ease;        // 빗긴 빛에서 번지지 않게
 }
 
 // 적응형 해상도: 25fps 아래가 이어지면 픽셀 비율을 내린다. 화질이 오르내리지 않게 되돌리지 않고, 1배 아래로는 낮추지 않는다.
@@ -997,6 +1220,15 @@ function syncShadows() {
     m.mesh.getWorldPosition(moonWorld);
     moonSpheres[i].set(moonWorld.x, moonWorld.y, moonWorld.z, m.radius * scale);
   });
+}
+
+// 움직임을 줄인 환경은 루프가 멈춰 있어 입력이 있을 때 한 장만 다시 그린다
+function renderStill() {
+  if (!REDUCE) return;
+  updatePlanet(0, 0);
+  updateParallax(0);
+  syncShadows();
+  renderIfPaused();
 }
 
 let frameId = 0;        // 예약된 프레임 — 중복 루프 방지
@@ -1037,6 +1269,8 @@ function animate(now) {
 
   if (REDUCE && et > REDUCE_RENDER_SECONDS) running = false;    // 정지(배터리 절약)
 }
+if (focus.on) setFocus(true);       // 렌더 함수까지 정의된 뒤에 복원한다
+if (REDUCE) updateParallax(0);      // 루프가 태양 방향을 갱신하지 않으므로 한 번 맞춘다
 startLoop();
 
 /* ============================================================
@@ -1052,7 +1286,7 @@ function applyResize() {
   renderer.setSize(w, h);
   composer.setSize(w, h);
   layoutPlanet();
-  renderIfPaused();                 // 정지 상태에서도 레이아웃 반영
+  renderStill();
 }
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
