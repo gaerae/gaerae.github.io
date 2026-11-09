@@ -1,12 +1,18 @@
 # gaerae.com (개래닷컴)
 
-> 개발자 '개래(gaerae)'의 개인 사이트. 개발자를 위한 블로그 '개발자스럽다'와 소셜 채널로 이어지는 허브입니다.
+> 개발자 '개래(gaerae)'의 개인 사이트. 개발자를 위한 블로그 '개발자스럽다'와 소셜 채널, 직접 만든 프로젝트로 이어지는 허브입니다.
+
+## 프로젝트
+- [PlayPets](https://playpets.gaerae.com/): 펫 친구들이 바탕화면에 사는 무료 오픈소스 데스크톱 펫 앱(macOS·Windows·Linux). 12명까지 서로 이야기하고 Claude Code·Codex 같은 코딩 에이전트에 반응한다. 소스: https://github.com/gaerae/playpets, 자세한 소개: https://playpets.gaerae.com/llms.txt
+- [넘실 한 잔](https://numsil.gaerae.com/): 책상 옆에 켜두는 가상 음료 한 잔. 눌러서, 기울여서 마시고 쉬거나 일하는 시간을 잔에 담는 웹앱.
+- [Enhancer for Plane](https://chromewebstore.google.com/detail/dicjfphghjfljkifogkplgdeefjdkhbo): 자체 호스팅 Plane(makeplane)용 비공식 크롬 확장. 이슈 제목·본문 템플릿과 화면 폭·스타일 규칙. 소스: https://github.com/gaerae/enhancer-for-plane
+- [Awesome Algorithms Education](https://github.com/gaerae/awesome-algorithms-education): 알고리즘 학습·연습용 강의, 온라인 저지, 시각화, 책, 대회를 모은 목록(영어·한국어).
 
 ## 주요 링크
-- 블로그 개발자스럽다: https://blog.gaerae.com
-- GitHub: https://github.com/gaerae
-- Facebook: https://www.facebook.com/gaeraecom
-- LinkedIn: https://www.linkedin.com/company/gaeraecom
-- X: https://x.com/gaeraecom
-- Instagram: https://www.instagram.com/gaeraecom
-- YouTube: https://youtube.com/gaeraecom
+- [블로그 개발자스럽다](https://blog.gaerae.com)
+- [GitHub](https://github.com/gaerae)
+- [Facebook](https://www.facebook.com/gaeraecom)
+- [LinkedIn](https://www.linkedin.com/company/gaeraecom)
+- [X](https://x.com/gaeraecom)
+- [Instagram](https://www.instagram.com/gaeraecom)
+- [YouTube](https://youtube.com/gaeraecom)
