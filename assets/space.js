@@ -328,7 +328,7 @@ for (let i = 0; i < NCOMET; i++) resetComet(i, true);
 const rnd = (a, b) => a + Math.random() * (b - a);
 
 const TEX = 'assets/textures/';
-const ASSET_VER = '21ee91de2b';        // 텍스처·3D 모델 캐시 버스팅 — scripts/version.mjs 가 갱신
+const ASSET_VER = 'e9092c27bf';        // 텍스처·3D 모델 캐시 버스팅 — scripts/version.mjs 가 갱신
 const body = chooseBody();
 
 const sizeVar = rnd(0.85, 1.12) * (body.hero ?? 1); // 개체마다 크기도 조금씩 다르게
