@@ -64,7 +64,18 @@ export function createCraft({ body, renderer, scene, parent, radius, envSun, url
   scene.environment = spaceEnvironment(renderer, envSun);
 
   const fading = [];                  // 불투명 재질도 나타나는 동안만 투명 패스로 돌린다
-  import('three/addons/loaders/GLTFLoader.js').then(({ GLTFLoader }) => new GLTFLoader().loadAsync(url)).then(({ scene: model }) => {
+  // 모델과 로더·디코더 모듈을 동시에 받음
+  // - 로더를 받은 뒤 모델을 요청하면 모듈 두 개를 받는 왕복만큼 늦게 시작
+  // - 모델 기하는 meshopt 압축(gltfpack) → 디코더 필요
+  const file = fetch(url).then((res) => {
+    if (!res.ok) throw new Error(`${res.status} ${url}`);
+    return res.arrayBuffer();
+  });
+  Promise.all([
+    import('three/addons/loaders/GLTFLoader.js'),
+    import('three/addons/libs/meshopt_decoder.module.js'),
+    file,
+  ]).then(([{ GLTFLoader }, { MeshoptDecoder }, data]) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(data, '')).then(({ scene: model }) => {
     const sphere = new THREE.Box3().setFromObject(model).getBoundingSphere(new THREE.Sphere());
     model.position.sub(sphere.center);
     root.scale.setScalar(radius / sphere.radius);
