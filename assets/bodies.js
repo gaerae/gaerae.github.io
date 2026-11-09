@@ -1,4 +1,4 @@
-// 천체 카탈로그와 선택 — 텍스처 경로·조명 값은 space.js 가 사용
+// 천체 카탈로그·선택·자산 선행 다운로드 — 조명 값은 space.js 가 사용
 import { drawFromBag } from 'app/bag.js';
 
 /* 행성·달: Solar System Scope (CC BY 4.0) / 나머지 위성·왜소행성: NASA·USGS (public domain).
@@ -81,7 +81,7 @@ export const BODIES = [
 export const FIXED_WORLD = document.documentElement.dataset.world;
 
 // ?p=<이름>으로 특정 천체 고정(선택 UI에서 사용), 없으면 셔플 백 순서
-export function chooseBody() {
+function chooseBody() {
   if (FIXED_WORLD) return BODIES.find(b => b.nm === FIXED_WORLD);
   const params = new URLSearchParams(location.search);
   const forcedName = (params.get('p') || '').toLowerCase();
@@ -95,3 +95,25 @@ export function chooseBody() {
   }
   return body;
 }
+
+export const BODY = chooseBody();
+
+// 고른 천체의 지도·모델은 여기서 바로 받기 시작한다
+// - 페이지가 이 모듈을 async 로 먼저 실행(index.html) → three.js·후처리 모듈을 받는 동안 겹쳐 받음
+// - space.js 는 그 모듈을 다 받아야 실행되므로 거기서 요청하면 그만큼 늦게 시작
+const ASSET_VER = '1bcacc2d07';        // 텍스처·3D 모델 캐시 버스팅 — scripts/version.mjs 가 갱신
+const images = new Map();
+
+export function bodyImage(file) {
+  if (!images.has(file)) images.set(file, Object.assign(new Image(), { src: `assets/textures/${file}?v=${ASSET_VER}` }));
+  return images.get(file);
+}
+
+for (const file of [BODY.tex, BODY.night, BODY.clouds, BODY.spec, BODY.ring?.tex, ...(BODY.moons || []).map(m => m.tex)]) {
+  if (file) bodyImage(file);
+}
+
+export const craftFile = BODY.craft && fetch(`assets/craft/${BODY.craft}?v=${ASSET_VER}`).then((res) => {
+  if (!res.ok) throw new Error(`${res.status} ${res.url}`);
+  return res.arrayBuffer();
+});

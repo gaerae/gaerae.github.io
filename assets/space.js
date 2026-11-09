@@ -4,7 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
-import { chooseBody, FIXED_WORLD } from 'app/bodies.js';
+import { BODY as body, bodyImage, craftFile, FIXED_WORLD } from 'app/bodies.js';
 import { createCraft, SampledPass } from 'app/craft.js';
 import { initPlanetPicker } from 'app/picker.js';
 import { createZoom } from 'app/zoom.js';
@@ -327,10 +327,6 @@ for (let i = 0; i < NCOMET; i++) resetComet(i, true);
  * ============================================================ */
 const rnd = (a, b) => a + Math.random() * (b - a);
 
-const TEX = 'assets/textures/';
-const ASSET_VER = '1bcacc2d07';        // 텍스처·3D 모델 캐시 버스팅 — scripts/version.mjs 가 갱신
-const body = chooseBody();
-
 const sizeVar = rnd(0.85, 1.12) * (body.hero ?? 1); // 개체마다 크기도 조금씩 다르게
 
 const R = 420;
@@ -405,12 +401,15 @@ const sunDir = SKY.sunDir.clone();
 const sunAim = new THREE.Vector3(); // 커서 반응용 태양 방향(프레임마다 재계산)
 const sunBase = new THREE.Vector3();
 
-const texLoader = new THREE.TextureLoader();
 const anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 // 정지 상태(reduce·렌더 멈춤)에서 늦게 도착한 텍스처도 화면에 반영
 const renderIfPaused = () => { if (!running && !contextLost && !document.hidden) composer.render(); };
 function loadTex(file, { srgb = true, onLoad } = {}) {
-  const t = texLoader.load(`${TEX}${file}?v=${ASSET_VER}`, () => { onLoad?.(); renderIfPaused(); });
+  const image = bodyImage(file);       // 이 천체의 지도는 bodies.js 가 이미 받는 중
+  const t = new THREE.Texture(image);
+  const ready = () => { t.needsUpdate = true; onLoad?.(); renderIfPaused(); };
+  // 이미 받은 지도도 비동기로 — onLoad 가 아직 초기화 중인 호출부 변수(planetTex)를 읽는다
+  if (image.complete && image.naturalWidth) queueMicrotask(ready); else image.addEventListener('load', ready, { once: true });
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = anisotropy;
   return t;
@@ -756,7 +755,7 @@ if (body.craft) {
   planet.visible = false;
   craft = createCraft({
     body, renderer, scene: planetScene, parent: planetGroup, radius: R * body.size, envSun: FOCUS_SUN,
-    url: `assets/craft/${body.craft}?v=${ASSET_VER}`, reduced: REDUCE, fade: fadeUniform(0.8),
+    file: craftFile, reduced: REDUCE, fade: fadeUniform(0.8),
     onReady() { planetFadeIn = !REDUCE; renderIfPaused(); },
   });
   onFrame((dt, et) => craft.update(et));
