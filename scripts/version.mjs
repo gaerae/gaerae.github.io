@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 자산 캐시 버스팅: 각 스크립트·스타일의 콘텐츠 해시를 index.html·404.html 의 ?v= 에,
+// 자산 캐시 버스팅: 각 스크립트·스타일·OG 이미지의 콘텐츠 해시를 index.html·404.html 의 ?v= 에,
 // assets/textures·assets/craft 전체의 해시를 bodies.js 의 ASSET_VER 에 반영(자산 → bodies.js → index.html 순).
 // 파일 내용이 바뀌면 URL이 바뀌어 CDN(4h) 캐시를 우회 → 배포 즉시 반영.
 // 안 바뀌면 해시 동일 → 기존 캐시 유지(최적). 커밋 전에 직접 실행한다.
@@ -13,6 +13,7 @@ const ASSETS = [
   'assets/space.css',
   'assets/bag.js',
   'assets/bodies.js',
+  'assets/og.jpg',
   'assets/craft.js',
   'assets/hero.js',
   'assets/picker.js',
